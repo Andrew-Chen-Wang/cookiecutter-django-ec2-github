@@ -6,6 +6,8 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 on:
+  # Allows for devs to press a button to deploy
+  workflow_dispatch:
   pull_request:
     branches: [ "master", "main" ]
     paths-ignore: [ "docs/**" ]
@@ -16,6 +18,12 @@ on:
 
 
 jobs:
+
+#--------------------------------------------------------------------------------------
+# Change the below portion to your own needs. This section is the Django/Python
+# configuration of running a linter and testing framework. Adjust this section to how
+# you've been running tests. Changes end at the next, huge dashed line
+
   linter:
     runs-on: ubuntu-latest
     steps:
@@ -31,7 +39,7 @@ jobs:
       # Run all pre-commit hooks on all the files.
       # Getting only staged files can be tricky in case a new PR is opened
       # since the action is run on a branch in detached head state
-      - name: Install and Run Pre-commit 
+      - name: Install and Run Pre-commit
         uses: pre-commit/action@v2.0.0
 
   # With no caching at all the entire ci process takes 4m 30s to complete!
@@ -87,3 +95,41 @@ jobs:
 
       - name: Test with pytest
         run:  pytest
+
+# Changes should end here
+#--------------------------------------------------------------------------------------
+
+  deploy:
+    runs-on: ubuntu-latest
+
+#--------------------------------------------------------------------------------------
+# Adjust the jobs you need here if you changed anything above.
+
+    needs:
+      - linter
+      - pytest
+
+# Change should end here
+#--------------------------------------------------------------------------------------
+
+    if: |
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.head_ref == 'refs/heads/master')
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # if you have/need it
+          aws-region: ${{ secrets.AWS_CODEDEPLOY_REGION }}
+      - name: Deploy to CodeDeploy
+        run: |
+          aws deploy create-deployment \
+          --deployment-group-name \
+          --target-instances \
+          --description ${{ github.sha }} \
+          --application-name ${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
+          --github-location repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
