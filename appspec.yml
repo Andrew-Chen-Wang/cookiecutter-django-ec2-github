@@ -1,0 +1,32 @@
+version: 0.0
+os: linux
+files:
+
+# You can find how this is configured here:
+# https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-files.html
+# source will only contain your project's files. This is only necessary if you
+# plan on copying files to a new destination.
+# If you're planning on using this, know that there are two spaces before the dash.
+# Spacing docs: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file.html#reference-appspec-file-spacing
+
+#  - source: /
+#    destination: /
+#  - file_exists_behavior: overwrite is not needed since Blue/Green brings up new instances
+
+# ------------------------------------------------------------------------------------
+
+# To learn more about hooks, visit the docs here:
+# https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#appspec-hooks-server
+hooks:
+  BeforeInstall:
+    - location: scripts/install_dependencies
+      timeout: 300
+      runas: root
+  ApplicationStart:
+    - location: scripts/start_server
+      timeout: 300
+      runas: root
+  ApplicationStop:
+    - location: scripts/stop_server
+      timeout: 300
+      runas: root

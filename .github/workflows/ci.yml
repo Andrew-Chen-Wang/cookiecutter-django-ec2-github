@@ -98,38 +98,30 @@ jobs:
 
 # Changes should end here
 #--------------------------------------------------------------------------------------
-
-  deploy:
-    runs-on: ubuntu-latest
-
-#--------------------------------------------------------------------------------------
-# Adjust the jobs you need here if you changed anything above.
-
-    needs:
-      - linter
-      - pytest
-
-# Change should end here
-#--------------------------------------------------------------------------------------
-
-    if: |
-      github.event_name == 'push'
-      && (github.ref == 'refs/heads/main' || github.head_ref == 'refs/heads/master')
-    steps:
-      - name: Checkout Code Repository
-        uses: actions/checkout@v2
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        if: |
+          github.event_name == 'push'
+          && (github.ref == 'refs/heads/main' || github.head_ref == 'refs/heads/master')        uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # if you have/need it
           aws-region: ${{ secrets.AWS_CODEDEPLOY_REGION }}
+# AWS CLI Docs: https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-create-cli.html
       - name: Deploy to CodeDeploy
+        # success() checks if the previous job was canceled or not
+        if: ${{ success() }}
         run: |
           aws deploy create-deployment \
-          --deployment-group-name \
-          --target-instances \
+          --deployment-group-name ${{ secrets.AWS_CODEDEPLY_DEPLOYMENT_GROUP_NAME }} \
+          --target-instances ${{ secrets.AWS_AUTOSCALING_GROUP_NAME }} \
           --description ${{ github.sha }} \
           --application-name ${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
           --github-location repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
+      - name: Run per-deployment single-execution script
+        # success() checks whether the previous job was successful
+        if: ${{ success() }}
+        with:
+          CI_CD_DEPLOYMENT_AUTH_TOKEN: ${{ secrets.CI_CD_DEPLOYMENT_AUTH_TOKEN }}
+        # Migrate so we can eventually check the latest migration
+        run: python manage.py deployment

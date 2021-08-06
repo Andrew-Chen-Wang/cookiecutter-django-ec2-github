@@ -1,11 +1,32 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.management import call_command
+from django.db.migrations.recorder import MigrationRecorder
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, RedirectView, UpdateView
 
 User = get_user_model()
+
+
+@csrf_exempt
+@require_POST
+def migrate(request):
+    """
+    User does not need to be authenticated, but they need to have an authorization token
+    """
+    authorization_token = request.headers.get("Authorization")
+    if authorization_token != settings.SINGLE_CD_AUTHORIZATION_TOKEN:
+        return HttpResponse(status=403)
+    # Run all commands that should only be run once per deployment
+    call_command("migrate", interactive=False)
+    last_migration = MigrationRecorder.Migration.objects.latest("id")
+    return JsonResponse({"app": last_migration.app, "name": last_migration.name})
 
 
 class UserDetailView(LoginRequiredMixin, DetailView):

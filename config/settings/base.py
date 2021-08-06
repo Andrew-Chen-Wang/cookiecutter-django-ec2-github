@@ -5,15 +5,52 @@ from pathlib import Path
 
 import environ
 
+
+class Env(environ.Env):
+    @classmethod
+    def read_json(
+        cls,
+        json_file: Path = None,
+        *,
+        key_handler: callable = lambda x: x,
+        value_handler: callable = lambda x: x,
+        **overrides,
+    ):
+        """
+        Reads a JSON file and accepts overrides as kwargs.
+
+        value_handler is a callable/lambda function that parses the values and the
+        function should output your value. E.g., the Parameter Store example had values
+        of {"Value": "", "ARN": ""}. So my callable would be:
+
+        Env.read_json(lambda x: x["Value"])
+        """
+        data = {}
+        if json_file is not None:
+            import json
+
+            data = json.loads(json_file.read_text())
+        # if you're on Python 3.9, you can just do `data |= overrides`
+        for key, value in {**data, **overrides}.items():
+            # This is putting everything into the Python process's environment
+            # It's literally doing os.environ[key] = value_handler(value)
+            cls.ENVIRON.setdefault(key_handler(key), value_handler(value))
+
+
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # my_awesome_project/
 APPS_DIR = ROOT_DIR / "my_awesome_project"
-env = environ.Env()
+env = Env()
 
 READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
 if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(ROOT_DIR / ".env"))
+
+# For production with parameter store
+READ_JSON_FILE = env.bool("DJANGO_READ_JSON_FILE", default=False)
+if READ_JSON_FILE:
+    env.read_json(ROOT_DIR / ".env.json", value_handler=lambda x: x["Value"])
 
 # GENERAL
 # ------------------------------------------------------------------------------

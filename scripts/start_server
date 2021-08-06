@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
+# CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
+# CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
+# CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
+# We're doing everything by path (i.e. glob) so make sure you have
+# that slash at the end!
+PARAMETER_STORE_PREFIX="DONATE_ANYTHING/"
+
+# Storing all secrets in a .env.json file in the root directory. I've implemented
+# a wrapper around django-environ to read in JSON files as well in config/settings/base.py
+# -------------------------------------------------------------------------------------
+# Grabbing our environment variables from Parameter Store and storing it in a JSON file
+# To specify a region (helpful for multi region deployments) by adding --region us-east-2
+echo $(aws ssm get-parameters-by-path --with-decryption \
+--path "${PARAMETER_STORE_PREFIX}") >> /.env.json
+
+# -------------------------------------------------------------------------------------
+
+# This is Django/Flask/FastAPI specific. This is where you'll need to replace
+# things if you're not using Django or if you're using an async framework (i.e. using
+# websockets, long polling, etc.).
+
+source venv/bin/activate
+
+# The following is Django oriented where I'm starting my HTTP server. If you're using a
+# different web framework, understand that my port is on 5000 so that NGINX, the reverse
+# proxy, can handle all the requests.
+# How many workers? https://docs.gunicorn.org/en/stable/design.html#how-many-workers
+gunicorn config.wsgi --bind 0.0.0.0:5000

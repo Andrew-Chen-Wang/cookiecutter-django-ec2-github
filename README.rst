@@ -4,6 +4,14 @@ GitHub Actions EC2 Blue/Green Deployment
 Cookiecutter Django with GitHub Actions CD (on push to main/master and manual deployment
 using a button) to EC2 using CodeDeploy Blue/Green deployment method.
 
+This tutorial covers a lot from the ground up, including: setting up our web server for
+automatic deployment on push to main/master, maintaining good security practices from
+short explanations, baby steps on which values you should input, setting up a buffering
+reverse proxy called NGINX (sync framework only, which will be explained later), setting
+up a database using AWS RDS, and a neat FAQ from 0-years of experience in DevOps
+explaining how to run Celery alongside your app in either the same server or different
+servers.
+
 .. image:: https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter
      :target: https://github.com/pydanny/cookiecutter-django/
      :alt: Built with Cookiecutter Django
@@ -32,7 +40,8 @@ the concepts are the same for the Ruby + Python ecosystem).
 
 This uses a Django application for deployment; if you're using some other framework
 like Ruby on Rails or Flask, I will mention where you can change the code to adjust
-to your own.
+to your own. I will be using t2/t3.micro over the course of this tutorial. To properly
+estimate your billing, visit `https://calculator.aws/ <https://calculator.aws/>`_
 
 Why did I write this tutorial? Like the ECS tutorial, I was just afraid I forgot all
 the concepts. Plus, it's really useful when you have a new project and need to speedrun
@@ -91,6 +100,7 @@ Deployment
 ----------
 
 Pre-requisites:
+
 * You are logged in to AWS Console
 * Have a domain, preferably in Route 53. If you just registered a domain from a
   different registrar like Google Domains, you need to wait 60 days before being able
@@ -112,8 +122,9 @@ GitHub Integration
    the Secrets tab, add a repository secret. The name should be
    ``AWS_CODEDEPLOY_APPLICATION_NAME``, and the value should be your CodeDeploy
    application name.
-6. Select your application and press "Deploy application." Don't worry! This will not
-   create a deployment! Just press it and relax :)
+6. Go back to AWS CodeDeploy dashboard. Select your application and press "Deploy
+   application." Don't worry! This will not create a deployment! Just press it and
+   relax :)
 7. You should now be in the Deployment settings. Find Revision type and select the one
    about GitHub (e.g. "My application is stored in GitHub").
 8. In the search box that appears, type in your GitHub username / organization name
@@ -121,8 +132,9 @@ GitHub Integration
    press Connect to GitHub and grant OAuth access to the necessary organizations. If
    you stop using this method, you can head to your personal / organization settings and
    revoke access (`if you need to revoke, follow this`_).
-9. After confirming the request, press Cancel. Yes, cancel the deployment and discard
-   (it's a button in the confirmation modal).
+9. After confirming the request for authorization, you'll be back in the menu. Press
+   Cancel. Yes, cancel the deployment and discard (it's a button in the confirmation
+   modal).
 
 .. _if you need to revoke, follow this: https://docs.aws.amazon.com/codedeploy/latest/userguide/integrations-partners-github.html#behaviors-authentication
 
@@ -156,6 +168,14 @@ manager only has certain permissions.
    and write your CodeDeploy/your account's region. You can find it at the top right.
    If it says ``global``, go to CodeDeploy again and check again. Note: you will never
    see these values again at both GitHub and AWS.
+8. Back in the IAM dashboard, go to the Roles tab. Then press Create role.
+9. There should be a bunch of services. Since we're using bare EC2 instances, find the
+   service CodeDeploy and select it. At the bottom, select "CodeDeploy" (DO NOT select
+   ECS or lambda). Then keep going until you need to name your role. I would call it
+   "project-CodeDeploy". Then press Create role.
+
+To specify which region this role is allowed to access/manage CodeDeploy, follow this
+guide: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
 
 Setting up a VPC
 ^^^^^^^^^^^^^^^^
@@ -222,7 +242,7 @@ cents and your Load Balancer will start charging quite a bit. Maybe $12 per mont
    domain. A hosted zone in Route 53 allows you to customize the DNS records for your
    domain. Finally, press continue. (When you're back on the ACM dashboard You don't
    need for the validation to happen; it'll take time. Just go to the next step)
-4. Search up EC2 and hea to the Target Groups tab. Then create a target group.
+4. Search up EC2 and head to the Target Groups tab. Then press Create a target group.
 5. Target type is Instances since we're only working with EC2 instances. The name can
    be "project-01". This time, that "01" is important. The protocol should be HTTP
    and port 80 since we let our ALB/ELB/Load Balancer handle HTTPS. Select your VPC and
@@ -283,7 +303,7 @@ information or run ``python manage.py shell`` to access production data.
 
 4. This step may be optional depending on your use-case. For many Django applications
    we typically use the database; this step covers both the database and cache. Just
-   note that AWS RDS and ElastiCache is expensive, like $50 a month for RDS alone.
+   note that AWS RDS and ElastiCache is expensive -- $50/month for RDS + $18 for cache.
    You can also host your own database, and, when you grow large, you can perform an
    extraction of all your data and import it into AWS RDS.
 
@@ -339,13 +359,110 @@ response.
    can create a new Launch Template. Don't worry. Everything can be changed!). For Key
    Pair, give a decent key pair name like "project-ec2-keypair". Choose ``.pem`` if
    you're on a Mac/Linux/WSL and ``.ppk`` if you're on Windows. The default volume of
-   8 GiB is enough. Click on "Advanced details." For Purchasing option, checkmark
-   Request Spot Instances. I'd give a max price of 0.025-0.03 (i.e. 2.5-3 cents).
+   8 GiB is enough. For Purchasing option, DO NOT checkmark Request Spot Instances
+   since it's configurable in your autoscaling group. If you're curious what pricing
+   spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
    Finally, Press "Create launch template."
 5. Search up EC2 and head to the Auto Scaling Groups tab (from the side bar menu at the
    very bottom). Press Create Auto Scaling Group.
 6. The name can be something like "project-EC2AutoScalingGroup". Select the Launch
-   Template you just made.
+   Template you just made. Use the default version and just press Next.
+7. Instance purchase options should have an option saying "Combine purchase options and
+   instance types" so that you can use both On-Demand and Spot instances. For us, we're
+   going to have 0 On-Demand instances. "Spot allocation strategy per Availability Zone"
+   should use lowest price with a pool of 2. `Click here to learn more about the pool`_.
+   Give 100% to our Spot instances. Enable Capacity rebalance so that we have true
+   Blue/Green (if you used On Demand only, then this wouldn't be necessary. Because
+   we're using Spot instances, an instance could be taken down and another could never
+   come back up if we don't bid for another instance. In that case, this option lets us
+   wait the deployment out until we can get a new instance.).
+8. Keep the default instance types. Choose your custom VPC and select all subnets.
+   Click next. Choose existing load balancer. Select Choose from your load balancer
+   target group. Make sure to select your target group. Click next. Our group size
+   should always be 1. Don't enable Scaling policies. You can set it up later. Don't
+   enable scale-in protection. It basically means that, based on metrics/current
+   resource consumption, if it drops lower, then don't bring down instances. I think
+   having dynamic scale-in, scale-out policy is better to conserve costs though.
+   Finally, create your Autoscaling Group.
+
+.. _Click here to learn more about the pool: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-configuration-strategies.html#plan-ec2-fleet
+
+Setting up the Database (AWS RDS)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you don't need a database then you can skip this portion. I will not be covering a
+cache setup, but the concepts here remain the same: VPC, security group attachment,
+and checking your costs.
+
+This is the most expensive piece: the database. I'm going to use the cheapest option,
+a t2.micro instance, costing my $26 per month. Check your metrics everyday to see if you
+need to upgrade your instance, and, yes, it's configurable/updatable. Don't worry.
+
+1. Search up RDS. Go to the Databases tab and press Create database.
+2. Choose Standard create. I'm selecting PostgreSQL to match with my security group and
+   needs. I always prefer the latest database version since database services are very
+   good with backwards compatibility. Use the Production template. Call the database
+   instance "project-database-01" (in case you need to set up read replicas later on).
+3. You should create a random username and password. I highly recommend you run this
+   script to do so (there is also an option to let AWS generate a password. If you
+   select that option instead, then, after you create the database, the password will
+   appear in a banner or modal):
+
+.. code-block:: python
+
+    import string, random
+
+    def generate_random_string(
+        length, using_digits=False, using_ascii_letters=False, using_punctuation=False
+    ):
+        """
+        Example:
+            opting out for 50 symbol-long, [a-z][A-Z][0-9] string
+            would yield log_2((26+26+50)^50) ~= 334 bit strength.
+        """
+        symbols = []
+        if using_digits:
+            symbols += string.digits
+        if using_ascii_letters:
+            symbols += string.ascii_letters
+        if using_punctuation:
+            all_punctuation = set(string.punctuation)
+            # These symbols can cause issues in environment variables
+            unsuitable = {"'", '"', "\\", "$"}
+            suitable = all_punctuation.difference(unsuitable)
+            symbols += "".join(suitable)
+        return "".join([random.choice(symbols) for _ in range(length)])
+
+    print("username", generate_random_string(32, using_ascii_letter=True))
+    print(
+        "password",
+        generate_random_string(64, using_digits=True, using_ascii_letters=True)
+    )
+
+4. My db instance class was a Burstable db.t3.micro costing me $13 per month, excluding
+   monthly storage costs (which is cheaper if you constantly increment your storage by
+   monitoring storage consumption). If you need help with calculating prices, visit
+   `calculator.aws <https://calculator.aws/>`_. For my Storage type, I chose General
+   Purpose (SSD) with an allocated storage of 20 GiB, the minimum, costing me $4.60.
+   Enable storage autoscaling. To prevent spam attacks from ruining my bill, I've made
+   the maximum storage threshold be 100 GiB. I chose not to use a Multi-AZ deployment
+   approach, and instead if my database goes down then it goes down... The Multi-AZ
+   approach creates a backup database in a different region in case master goes down.
+5. Choose your custom VPC. Let AWS create a new DB Subnet Group. No public access.
+   Then choose your security group for the database. Enable Password authentication
+   only.
+6. Open the Additional configuration dropdown. You need to name your database. You can
+   run the above Python script again like so:
+   ``print(generate_random_string(64, using_digits=True, using_ascii_letter=True))``
+7. Enable automated backups. The backup window should be at a specific time when the
+   least number of users are predicted to be online. Make sure to enable auto minor
+   version upgrade. Also be sure to select a maintenance window (something AWS would
+   randomly perform otherwise). Leave the rest of the defaults alone and press Create.
+
+Make sure you did not delete those generated values. We still need to store everything
+inside Parameter Store, our environment variable / secrets manager.
+
+For restoring your backups, visit the docs: https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-rds.html
 
 Setting up our CI/CD using GitHub Actions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -377,6 +494,101 @@ Note that you can also use GitLab with their CI. Just know that the steps for Gi
 integrations won't be necessary; you'll instead need to choose S3 and your CI file will
 need to specify an S3 bucket. That S3 bucket then needs to store your project files.
 
+Adding our environment variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We now need to add our environment variables for use on our servers.
+
+1. Search for Systems Manager. Go to the Parameter Store tab.
+2. Double check that you are in the correct region.
+3. For each environment variable you need, press Create parameter. I **highly highly**
+   recommend that all your parameter names have a prefix like ``PROJECT/SECRET`` where
+   "SECRET" is the actual name you want the environment variable to be. This allows for
+   easier identification of parameters between projects hosted on the same AWS account.
+   Use Standard tier and text data type and paste your environment variables.
+4. That prefix is extremely important in all your secret values. In `start_server`_,
+   change that prefix value to yours. In my Python application, I'm using
+   ``os.environ["DATABASE_URL"]`` but my parameter store key is called
+   ``PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
+   prefix (i.e. the ``PROJECT/``) and stored it as a JSON in the path ``/.env.json``.
+   For cookiecutter-django/django-environ users, I've created a class ``Env`` which
+   takes that JSON file and inserts the key/values into ``os.environ``.
+
+If you'd like, in your `start_server`_ file, you can specify a region where you created
+your parameters by appending ``--region us-east-2``.
+
+Setting up Scripts to setup our Servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In our Launch Template step, we wanted Ubuntu servers. Here, we're going to install our
+(i.e. my) preferred Python version, installing our necessary packages, and finally
+running the server.
+
+1. Copy `appspec.yml <./appspec.yml>`_. There are comments inside explaining what's
+   going on. In a nutshell, this is how CodeDeploy knows 1. where to store our project
+   files on the server and 2. where and what scripts to run using specific hooks which
+   have a unique lifecycle (e.g. ApplicationStop will trigger ApplicationStart but skips
+   BeforeInstall).
+2. Copy the `scripts <./scripts>`_ directory. In `install_dependencies`_, you can see me
+   updating and upgrading Ubuntu packages, setting up my preferred Python version,
+   collecting staticfiles, and installing my Python packages. Adjust to your needs.
+   `start_server`_ is preparing the actual start command for my server (for Django,
+   it's gunicorn). If you choose to delete the ``stop_server`` script, then make sure
+   to update ``appspec.yml``.
+3. In `start_server`_, we're grabbing all our environment variables from Parameter
+   Store and injecting it into our local environment. Adjust to your needs.
+
+You may also notice us installing NGINX in the `install_dependencies`_ script. NGINX is
+our buffering reverse proxy. Please read the comments in the script file. Note: it is
+only necessary if you're using a sync server (i.e. if you're using Ruby and you're not
+doing long polling, websockets, or comet, or if you're on Django or Flask and you're
+using gunicorn and not uvicorn i.e. not using ASGI or any async def/coroutine stuff).
+
+.. _install_dependencies: ./scripts/install_dependencies
+.. _start_server: ./scripts/start_server
+
+Finalizing Per-Deployment Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We're going to take advantage of GitHub Actions one more time. For many frameworks, we
+have a form of migrations like Django migrations, Alembic, etc. for a new database
+schema. But we don't want all our instances running it. In that case, Django and Flask
+provide a great utility for calling manage.py commands without the CLI. For Django,
+it's ``call_command`` and Flask should use Alembic itself. I can't disclose how I did it
+for my previous employer for Flask, but the solution is actually quite simple to create.
+
+1. In this repo, visit `my_awesome_project/users/views.py`_ and take a look at the
+   ``migrate`` function. In Django and Flask terminology, this is a "view" or an
+   endpoint. In this view, we check the headers for an Authorization token. The settings
+   for this authorization token is not set, but, so long as you read my tutorial for the
+   environment variable section, it shouldn't be a problem to add to Parameter Store.
+   Once authorized, we run the migrate command and send a JSON response specifying the
+   latest migration name/revision ID on our production database.
+2. Additionally, visit `my_awesome_project/users/management/commands/deployment.py`_.
+   There, you see me running an entire deployment script. It migrates our database
+   on to the CI database (this is a Django only thing). Then, we can grab the latest
+   migration/revision ID. It loops (with 1 second delay) until we receive the right
+   data form our endpoint that matches the migration we need.
+3. Go back to our GitHub action workflow file and adjust the last run step to your need,
+   including what secrets value to use and the Django command to run.
+
+.. _my_awesome_project/users/views.py: ./my_awesome_project/users/views.py
+.. _my_awesome_project/users/management/commands/deployment.py: ./my_awesome_project/users/management/commands/deployment.py
+
+Let's Run It!
+^^^^^^^^^^^^^
+
+Congrats on getting everything prepared! All that's left to do is to deploy our
+application.
+
+You have two options:
+
+1. Go to your GitHub repository. Go to the Actions tab. Press Select Workflow.
+   Select ``CI``. Then, press "Run workflow" on your default branch.
+2. You can also just commit new changes to your default branch.
+
+Both ways work now and forever in the future!
+
 Credit and License
 ------------------
 
@@ -398,17 +610,46 @@ didn't understand the concepts very well since I'd only been on GitHub for...
 Additional Resources
 --------------------
 
+FAQ
+^^^
+
+**How do I configure Celery and can I configure Celery on the same server?**
+
+Yes; in fact, you have two options for actually running Celery:
+
+* For startups, having a single EC2 instance is cost effective and more easily
+  configurable. We have to install something called supervisord. We'll need to set up
+  that configuration and run `supervisorctl restart project:*`. Our configuration in
+  this case allows us to run both Celery and our Django web app at the same time.
+
+* For those who require multiple servers, having a celery worker per server is overkill
+  and a waste of money/resources, I instead advise you to use a new EC2 Autoscaling
+  Group. In the CI workflow file, you'll need to edit
+  ``--target-instances ${{ secrets.AWS_AUTOSCALING_GROUP_NAME }}`` to have both your web
+  app's autoscaling group and your Celery worker autoscaling group.
+
+**Can I run multiple websites like this?**
+
+Yes. I, however, explicitly mentioned why not to (to have separate VPCs per project for
+security) and to have different configurations. Also know that it'll be annoying when
+one repository commits, all servers go down together. The method of setting this up is
+the same as the celery bullet point above.
+
 Links
 ^^^^^
 
 These are the additional resources that I used to create this tutorial
 
 * Connecting CodeDeploy to GitHub: https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-create-cli-github.html
-* Creating the deployment: https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-create-cli.html
   (`archived version of the integration docs <https://web.archive.org/web/20210304165932/https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-create-cli-github.html>`_)
 
+* Creating the deployment: https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-create-cli.html
 * Creating a subnet: https://docs.aws.amazon.com/vpc/latest/userguide/working-with-vpcs.html#AddaSubnet
 * Internet Gateway and Route Table: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html#Add_IGW_Attach_Gateway
+* Appspec "files" section: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-files.html
+* If you're curious what pricing and its price history for spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
+* Documentation for pricing for Spot Requests using Autoscaling: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-configuration-strategies.html
+* Creating a CodeDeploy service role: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
 
 Additional Notes
 ^^^^^^^^^^^^^^^^

@@ -1,0 +1,125 @@
+#!/bin/bash
+sudo apt update
+sudo apt -y upgrade
+
+# Installing NGINX, our reverse buffering proxy
+# ------------------------------------------------------------------------------------
+# Used for all Python/Ruby based web frameworks. This is due to buffering attacks.
+# If a slow client starts downloading some content (even a single 1k HTML file), then
+# the thread is blocked. When the thread is blocked, other requests will not be
+# processed and will essentially be stuck. Even if it's unintentional, slow clients can
+# kill your server. Thus, we have a buffering proxy.
+
+# Note: if you're handling websockets, long polling, Comment, or other fancy stuff
+# (e.g. using an ASGI framework), then NGINX may not be needed anymore. In that case,
+# your web server doesn't need to serve on port 5000. It can now be running on port 80.
+# When I mean the web server running on ports, visit start_server and change 5000 to 80
+# and delete this section about NGINX.
+
+# Even if you are using some async stuff, you can still use NGINX, just not the
+# buffering. NGINX still allows you to make configurations that ALB doesn't let you,
+# but NGINX doesn't matter as much anymore.
+
+# Visit here for the source of this async explanation:
+# https://docs.gunicorn.org/en/stable/deploy.html
+
+sudo apt install -y nginx
+cat <<EOT >> /usr/local/nginx/nginx.conf
+worker_processes 1;
+
+user nobody nogroup;
+# 'user nobody nobody;' for systems with 'nobody' as a group instead
+error_log  /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+  worker_connections 1024; # increase if you have lots of clients
+  accept_mutex off; # set to 'on' if nginx worker_processes > 1
+  # 'use epoll;' to enable for Linux 2.6+
+  # 'use kqueue;' to enable for FreeBSD, OSX
+}
+
+http {
+  include mime.types;
+  # fallback in case we can't determine a type
+  default_type application/octet-stream;
+  access_log /var/log/nginx/access.log combined;
+  sendfile on;
+
+  upstream app_server {
+    # fail_timeout=0 means we always retry an upstream even if it failed
+    # to return a good HTTP response
+
+    # for UNIX domain socket setups
+    # server unix:/tmp/gunicorn.sock fail_timeout=0;
+
+    # for a TCP configuration
+    server http://127.0.0.1:5000 fail_timeout=0;
+  }
+
+  server {
+    # if no Host match, close the connection to prevent host spoofing
+    listen 80 default_server;
+    return 444;
+  }
+
+  server {
+    # use 'listen 80 deferred;' for Linux
+    # use 'listen 80 accept_filter=httpready;' for FreeBSD
+    listen 80;
+    client_max_body_size 4G;
+
+    # set the correct host(s) for your site
+    server_name donate-anything.org;
+
+    keepalive_timeout 5;
+
+    location / {
+      # checks for static file, if not found proxy to app
+      try_files $uri @proxy_to_app;
+    }
+
+    location @proxy_to_app {
+      # To turn off buffering, you only need to add `proxy_buffering off;`
+
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header Host $http_host;
+      # we don't want nginx trying to do something clever with
+      # redirects, we set the Host: header above already.
+      proxy_redirect off;
+      proxy_pass http://app_server;
+    }
+  }
+}
+EOT
+sudo service nginx restart
+# ------------------------------------------------------------------------------------
+
+# Installing Python
+# ------------------------------------------------------------------------------------
+# Since I needed Python 3.9, I manually installed it since my AMI was
+# Ubuntu 20.04 LTS which only has Python 3.8 and below.
+# Note, just doing `python` does not work anymore; you can only do python2
+# and python3 commands
+
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt install -y python3.9 python3.9-dev python3.9-venv
+python3.9 -m ensurepip --default-pip --user
+# ------------------------------------------------------------------------------------
+
+# My dependencies
+# ------------------------------------------------------------------------------------
+sudo apt install -y libpq-dev gettext
+# We're going to create a virtual environment to not screw up default packages
+python3.9 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install -r requirements/production.txt
+python manage.py collectstatic --noinput
+# ------------------------------------------------------------------------------------
+
+# BTW, I highly recommend IPython installed on local + production
+# I didn't add it here since the tutorial's not about that, but super useful
+# when identifying bugs with production data.
