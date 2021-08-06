@@ -29,6 +29,16 @@ def migrate(request):
     return JsonResponse({"app": last_migration.app, "name": last_migration.name})
 
 
+def collectstatic(request):
+    authorization_token = request.headers.get("Authorization")
+    if authorization_token != settings.SINGLE_CD_AUTHORIZATION_TOKEN:
+        return HttpResponse(status=403)
+    # Make sure you have an S3 bucket set up. AWS injects an IAM user here
+    # automatically (from our tutorial).
+    call_command("collectstatic", interactive=False)
+    return HttpResponse(status=200)
+
+
 class UserDetailView(LoginRequiredMixin, DetailView):
 
     model = User

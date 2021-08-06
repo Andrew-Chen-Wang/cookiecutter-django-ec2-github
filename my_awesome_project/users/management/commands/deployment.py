@@ -17,11 +17,15 @@ class Command(BaseCommand):
     def auth_token(self):
         return os.environ["CI_CD_DEPLOYMENT_AUTH_TOKEN"]
 
+    def make_request(self, path):
+        return requests.post(
+            f"https://donate-anything.org/{path}",
+            headers={"Authorization": self.auth_token},
+        )
+
     def run_migration(self, last_migration):
         # TODO Change this domain!!! Remember, you can't use the site model!
-        r = requests.post(
-            "https://donate-anything.org/", headers={"Authorization": self.auth_token}
-        )
+        r = self.make_request("migrate/")
         if not r.ok:
             self.stdout.write(self.style.ERROR("Failed to migrate!"))
             sys.exit(1)
@@ -33,7 +37,16 @@ class Command(BaseCommand):
         sleep(1)
         return self.run_migration(last_migration)
 
+    def run_collectstatic(self):
+        r = self.make_request("collectstatic/")
+        if not r.ok:
+            self.stdout.write(self.style.ERROR("Failed to collectstatic!"))
+        return
+
     def handle_command(self, *args, **options):
+        # Run collectstatic
+        self.run_collectstatic()
+        # Prep for migrate
         call_command("migrate", interactive=False)
         last_migration = MigrationRecorder.Migration.objects.latest("id")
         self.run_migration(last_migration)

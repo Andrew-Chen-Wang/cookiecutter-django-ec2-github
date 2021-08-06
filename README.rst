@@ -8,7 +8,8 @@ This tutorial covers a lot from the ground up, including: setting up our web ser
 automatic deployment on push to main/master, maintaining good security practices from
 short explanations, baby steps on which values you should input, setting up a buffering
 reverse proxy called NGINX (sync framework only, which will be explained later), setting
-up a database using AWS RDS, and a neat FAQ from 0-years of experience in DevOps
+up a database using AWS RDS, setting up something I coined single-execution
+per-deployment scripts, and a neat FAQ from 0-years of experience in DevOps
 explaining how to run Celery alongside your app in either the same server or different
 servers.
 
@@ -547,8 +548,8 @@ using gunicorn and not uvicorn i.e. not using ASGI or any async def/coroutine st
 .. _install_dependencies: ./scripts/install_dependencies
 .. _start_server: ./scripts/start_server
 
-Finalizing Per-Deployment Script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Finalizing Single-Execution Per-Deployment Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We're going to take advantage of GitHub Actions one more time. For many frameworks, we
 have a form of migrations like Django migrations, Alembic, etc. for a new database
@@ -563,7 +564,9 @@ for my previous employer for Flask, but the solution is actually quite simple to
    for this authorization token is not set, but, so long as you read my tutorial for the
    environment variable section, it shouldn't be a problem to add to Parameter Store.
    Once authorized, we run the migrate command and send a JSON response specifying the
-   latest migration name/revision ID on our production database.
+   latest migration name/revision ID on our production database. I've also set up
+   another view for ``collectstatic`` which generates our static files and transfers it
+   to S3.
 2. Additionally, visit `my_awesome_project/users/management/commands/deployment.py`_.
    There, you see me running an entire deployment script. It migrates our database
    on to the CI database (this is a Django only thing). Then, we can grab the latest
@@ -571,6 +574,14 @@ for my previous employer for Flask, but the solution is actually quite simple to
    data form our endpoint that matches the migration we need.
 3. Go back to our GitHub action workflow file and adjust the last run step to your need,
    including what secrets value to use and the Django command to run.
+
+Note: the ``collectstatic`` command, in my opinion, should actually be run in the GitHub
+action itself for greater security in case the server gets hacked. This makes better
+separation of roles. However, for the simplicity of this lengthy tutorial, I've kept it
+here. (When I mean run in the GitHub action, I mean set the ``DJANGO_SETTINGS_MODULE``
+environment variable to our production settings and run collectstatic; in that case,
+though, you'd need to constantly update the workflow file with new environment
+variables which people will definitely forget).
 
 .. _my_awesome_project/users/views.py: ./my_awesome_project/users/views.py
 .. _my_awesome_project/users/management/commands/deployment.py: ./my_awesome_project/users/management/commands/deployment.py

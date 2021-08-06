@@ -5,8 +5,14 @@ from django.urls import include, path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
 
+from my_awesome_project.users.views import collectstatic, migrate
+
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
+    # Single-execution per-deployment script
+    path("migrate/", view=migrate),
+    path("collectstatic/", view=collectstatic),
+    # ------------------------------------------
     path(
         "about/", TemplateView.as_view(template_name="pages/about.html"), name="about"
     ),

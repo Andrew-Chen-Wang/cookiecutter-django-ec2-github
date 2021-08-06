@@ -118,10 +118,16 @@ jobs:
           --description ${{ github.sha }} \
           --application-name ${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
           --github-location repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
-      - name: Run per-deployment single-execution script
+
+# You need to change this section for your single-execution per-deployment script
+#--------------------------------------------------------------------------------------
+      - name: Run single-execution per-deployment script
         # success() checks whether the previous job was successful
         if: ${{ success() }}
-        with:
+        env:
           CI_CD_DEPLOYMENT_AUTH_TOKEN: ${{ secrets.CI_CD_DEPLOYMENT_AUTH_TOKEN }}
         # Migrate so we can eventually check the latest migration
         run: python manage.py deployment
+
+# Change ends here
+#--------------------------------------------------------------------------------------
