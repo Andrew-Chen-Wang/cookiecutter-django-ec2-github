@@ -178,6 +178,12 @@ manager only has certain permissions.
    service CodeDeploy and select it. At the bottom, select "CodeDeploy" (DO NOT select
    ECS or lambda). Then keep going until you need to name your role. I would call it
    "project-CodeDeploy". Then press Create role.
+10. We need to create another role that'll be used in our EC2 instance itself.
+    Select EC2. In the policy section, if you're using django-storages (e.g. if you're
+    using cookiecutter-django), then search up S3 and attach S3 full access role.
+    If you don't have that, just press next and now no policy/permission has been given
+    to your EC2 instance. Call it "project-ec2". Later on, you can change the policies
+    on this role, so don't worry!
 
 To specify which region this role is allowed to access/manage CodeDeploy, follow this
 guide: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
@@ -364,9 +370,11 @@ response.
    can create a new Launch Template. Don't worry. Everything can be changed!). For Key
    Pair, give a decent key pair name like "project-ec2-keypair". Choose ``.pem`` if
    you're on a Mac/Linux/WSL and ``.ppk`` if you're on Windows. The default volume of
-   8 GiB is enough. For Purchasing option, DO NOT checkmark Request Spot Instances
+   8 GiB is enough. In Advanced details, for Purchasing option,
+   DO NOT checkmark Request Spot Instances
    since it's configurable in your autoscaling group. If you're curious what pricing
    spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
+   Select the IAM instance profile we made in `Setting up Credentials`_ step 10.
    Finally, Press "Create launch template."
 5. Search up EC2 and head to the Auto Scaling Groups tab (from the side bar menu at the
    very bottom). Press Create Auto Scaling Group.
