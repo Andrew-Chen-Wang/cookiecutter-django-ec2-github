@@ -24,72 +24,47 @@ sudo apt -y upgrade
 # https://docs.gunicorn.org/en/stable/deploy.html
 
 sudo apt install -y nginx
-cat <<EOT > /usr/local/nginx/nginx.conf
-worker_processes 1;
+sudo touch /etc/nginx/sites-enabled/project.conf
 
-user nobody nogroup;
-# 'user nobody nobody;' for systems with 'nobody' as a group instead
-error_log  /var/log/nginx/error.log warn;
-pid /var/run/nginx.pid;
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# CHANGE THE DOMAIN HERE!!!!!!!
+# Change it below
 
-events {
-  worker_connections 1024; # increase if you have lots of clients
-  accept_mutex off; # set to 'on' if nginx worker_processes > 1
-  # 'use epoll;' to enable for Linux 2.6+
-  # 'use kqueue;' to enable for FreeBSD, OSX
-}
-
-http {
-  include mime.types;
-  # fallback in case we can't determine a type
-  default_type application/octet-stream;
-  access_log /var/log/nginx/access.log combined;
-  sendfile on;
-
-  upstream app_server {
-    # fail_timeout=0 means we always retry an upstream even if it failed
-    # to return a good HTTP response
-
-    # for UNIX domain socket setups
-    # server unix:/tmp/gunicorn.sock fail_timeout=0;
-
-    # for a TCP configuration
-    server http://127.0.0.1:5000 fail_timeout=0;
+sudo cat <<EOT > /etc/nginx/sites-enabled/project.conf
+server {
+  set $my_host $host;
+  if ($host ~ "\d+\.\d+\.\d+\.\d+") {
+      set $my_host "donate-anything.org";
   }
 
-  server {
-    # if no Host match, close the connection to prevent host spoofing
-    listen 80 default_server;
-    return 444;
-  }
+  client_max_body_size 2G;
+  server_name donate-anything.org www.donate-anything.org;
 
-  server {
-    # use 'listen 80 deferred;' for Linux
-    # use 'listen 80 accept_filter=httpready;' for FreeBSD
-    listen 80;
-    client_max_body_size 4G;
+  keepalive_timeout 5;
 
-    # set the correct host(s) for your site
-    server_name donate-anything.org;
+  location / {
+    proxy_pass http://127.0.0.1:5000;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $my_host;
+    # we don't want nginx trying to do something clever with
+    # redirects, we set the Host: header above already.
+    proxy_redirect off;
 
-    keepalive_timeout 5;
-
-    location / {
-      # checks for static file, if not found proxy to app
-      try_files $uri @proxy_to_app;
-    }
-
-    location @proxy_to_app {
-      # To turn off buffering, you only need to add `proxy_buffering off;`
-
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $http_host;
-      # we don't want nginx trying to do something clever with
-      # redirects, we set the Host: header above already.
-      proxy_redirect off;
-      proxy_pass http://app_server;
-    }
+    ## The following is only needed for async frameworks:
+    ## NGINX example https://www.nginx.com/blog/websocket-nginx/
+    ## To turn off buffering, you only need to add `proxy_buffering off;`
+    # proxy_set_header Upgrade $http_upgrade;
+    # proxy_set_header Connection 'upgrade';
+    ## 25 minutes of no data closes connection
+    # proxy_read_timeout 1500s;
   }
 }
 EOT

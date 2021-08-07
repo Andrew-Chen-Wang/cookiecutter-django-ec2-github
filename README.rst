@@ -1,17 +1,21 @@
 GitHub Actions EC2 Blue/Green Deployment
 ========================================
 
+================  ============================================================
+Created by        `Andrew-Chen-Wang`_
+Created on        4 August 2021
+================  ============================================================
+
 Cookiecutter Django with GitHub Actions CD (on push to main/master and manual deployment
-using a button) to EC2 using CodeDeploy Blue/Green deployment method.
+using a button) to EC2 using CodeDeploy Blue/Green deployment method for zero downtime.
 
 This tutorial covers a lot from the ground up, including: setting up our web server for
 automatic deployment on push to main/master, maintaining good security practices from
 short explanations, baby steps on which values you should input, setting up a buffering
 reverse proxy called NGINX (sync framework only, which will be explained later), setting
 up a database using AWS RDS, setting up something I coined single-execution
-per-deployment scripts, and a neat FAQ from 0-years of experience in DevOps
-explaining how to run Celery alongside your app in either the same server or different
-servers.
+per-deployment scripts, and a neat FAQ from 0-years of experience in DevOps explaining
+how to run Celery alongside your app in either the same server or different servers.
 
 .. image:: https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter
      :target: https://github.com/pydanny/cookiecutter-django/
@@ -152,7 +156,7 @@ manager only has certain permissions.
 2. Create a User Group. The name can just be your "project-name-Deployment".
 3. Scroll to the permissions section and filter by "CodeDeploy" in the search field.
    Make sure to press enter. Check mark the role called ``AWSCodeDeployRole``. If it's
-   not there, view Note 1 at the
+   not there, view Note 1 [1]_ at the
    `additional notes section at the bottom <#additional-notes>`_.
 4. Select Users or find a button saying Create User (DO NOT create a User Group)
 5. Give it a username like "project-name-CodeDeploy" and give it Programmatic Access.
@@ -385,8 +389,31 @@ response.
    resource consumption, if it drops lower, then don't bring down instances. I think
    having dynamic scale-in, scale-out policy is better to conserve costs though.
    Finally, create your Autoscaling Group.
+9. Go to your GitHub secrets and add a new secret called ``AWS_AUTOSCALING_GROUP_NAME``
+   with the value being the name you gave the autoscaling group
+   "project-EC2AutoScalingGroup"
 
 .. _Click here to learn more about the pool: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-configuration-strategies.html#plan-ec2-fleet
+
+Creating a CodeDeploy Deployment Group
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. Search up CodeDeploy and head to your application. Create a deployment group.
+2. Enter a deployment group name and set that to something like
+   "project-DeploymentGroup-01". Use the service role we created in
+   `Setting up Credentials`_, step 9. It should look like: "project-CodeDeploy". The
+   deployment type should be Blue/Green. The environment configuration should be copying
+   Autoscaling group. Choose your Autoscaling group. Re-route traffic immediately.
+   Terminate the original instance in 30 minutes.
+3. In this tutorial, we can just select the Deployment Configuration for half. However,
+   in the future, you should create a custom percentage based configuration with
+   minimum healthy instances being 80% (so 20% at a time. This can be lowered to 10%).
+4. Choose your load balancer and the custom target group. In advanced configuration,
+   head to Rollbacks and uncheck "Disable rollbacks." Enable "Roll back when a
+   deployment fails." Then, press Create deployment group.
+5. Head to GitHub Secrets and add a new key ``AWS_CODEDEPLOY_DEPLOYMENT_GROUP`` with
+   the value being the name you set up for the deployment group, it was something like
+   "project-DeploymentGroup-01"
 
 Setting up the Database (AWS RDS)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -407,7 +434,10 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
 3. You should create a random username and password. I highly recommend you run this
    script to do so (there is also an option to let AWS generate a password. If you
    select that option instead, then, after you create the database, the password will
-   appear in a banner or modal):
+   appear in a banner or modal). This is Python. You can copy and paste this into
+   IPython or use `Programiz.com's`_ online Python "compiler":
+
+.. _Programiz.com's: https://www.programiz.com/python-programming/online-compiler/
 
 .. code-block:: python
 
@@ -495,10 +525,11 @@ Note that you can also use GitLab with their CI. Just know that the steps for Gi
 integrations won't be necessary; you'll instead need to choose S3 and your CI file will
 need to specify an S3 bucket. That S3 bucket then needs to store your project files.
 
-Adding our environment variables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Adding our environment variables for our servers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We now need to add our environment variables for use on our servers.
+We now need to add our environment variables for use on our servers. You can view the
+parameter store values I used here for a default cookiecutter-django project: [3]_.
 
 1. Search for Systems Manager. Go to the Parameter Store tab.
 2. Double check that you are in the correct region.
@@ -512,8 +543,19 @@ We now need to add our environment variables for use on our servers.
    ``os.environ["DATABASE_URL"]`` but my parameter store key is called
    ``PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
    prefix (i.e. the ``PROJECT/``) and stored it as a JSON in the path ``/.env.json``.
-   For cookiecutter-django/django-environ users, I've created a class ``Env`` which
-   takes that JSON file and inserts the key/values into ``os.environ``.
+   For cookiecutter-django or django-environ users, I've created a class ``Env`` which
+   takes that JSON file and inserts the key/values into ``os.environ`` (you can view
+   the class in `config/settings/base.py`_.
+5. In `config/settings/production.py`_, I made some changes with django-storages.
+   Because our EC2 instances already have its AWS credentials and region set up, I
+   chose to omit the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_S3_REGION_NAME,
+   hence not needing it in Parameter Store. (I wrote an if condition saying if
+   ``if "AWS_ACCESS_KEY_ID" not in os.environ``, then I'd require the parameter store
+   values. The region should match with your S3 bucket region. If not, then you'll
+   still want to manually set it with a Parameter Store value.
+
+.. _config/settings/base.py: ./config/settings/base.py
+.. _config/settings/production.py: ./config/settings/production.py
 
 If you'd like, in your `start_server`_ file, you can specify a region where you created
 your parameters by appending ``--region us-east-2``.
@@ -536,7 +578,13 @@ running the server.
    `start_server`_ is preparing the actual start command for my server (for Django,
    it's gunicorn). If you choose to delete the ``stop_server`` script, then make sure
    to update ``appspec.yml``.
-3. In `start_server`_, we're grabbing all our environment variables from Parameter
+3. In `install_dependencies`_, change the domain in the NGINX configuration iff you are
+   using sync. If you have websockets, long polling, or are using an async framework,
+   there are additional configurations you can add to your NGINX configuration if you
+   want to continue using it (or you can simply delete the NGINX configuration and set
+   the gunicorn/web server port from port 5000 to 80 since NGINX used to listen on port
+   80 for our web server (as the reverse proxy)).
+4. In `start_server`_, we're grabbing all our environment variables from Parameter
    Store and injecting it into our local environment. Adjust to your needs.
 
 You may also notice us installing NGINX in the `install_dependencies`_ script. NGINX is
@@ -624,20 +672,98 @@ Additional Resources
 FAQ
 ^^^
 
+**Is there a list of secrets that you added to GitHub and Parameter Store?**
+
+Yup! Head down to the Additional Resources section [2]_ [3]_.
+
+**How do I restart a deployment?**
+
+You've got two options:
+
+* Go to your application in CodeDeploy. Find the latest deployment for your application,
+  then re-run it.
+* The other options involve Git/GitHub. You can go to your repository's Actions tab.
+  Select the workflow file including your deployment script. Then press Run workflow
+  and the branch should be your default branch. The other option is to simply commit
+  and push.
+
 **How do I configure Celery and can I configure Celery on the same server?**
 
-Yes; in fact, you have two options for actually running Celery:
+In `start_server`_ and `stop_server <./scripts/stop_server>`_,
+you'll see I have some commands: two for starting and two for stopping. We run
+everything in detached mode and stop it via its generated pidfile.
 
-* For startups, having a single EC2 instance is cost effective and more easily
-  configurable. We have to install something called supervisord. We'll need to set up
-  that configuration and run `supervisorctl restart project:*`. Our configuration in
-  this case allows us to run both Celery and our Django web app at the same time.
+Here, I provide 4 methods for running Celery: 2 for doing everything on a single
+instance/server and 2 for doing it on multiple instances/servers. If you can afford
+it, the most recommended approach is to use the 3 EC2 autoscaling groups (meaning
+a minimum of three servers which can be costly for some).
+
+Yes, you can run Celery on one instance. For startups, having a single EC2 instance
+is cost effective and more easily configurable; in fact, you have two options for
+running Celery on one instance:
+
+* Single server serving both Celery and your web server can be done either via Celery
+  itself or, if you need multiple nodes, supervisor. It comes in two parts (if you're
+  using Celery beat):
+
+  * Setup (celery beat only):
+
+    * For the single server solution: Celery beat should only be run on one instance, and
+      Blue/Green makes two (the original is not taken down until the new one is ready).
+      django-celery-beat is the preferred package over RedBeat's Redis scheduler and is
+      the one currently configured with cookiecutter-django. One way to work with this
+      is by doing a curl POST request to the following endpoint in our workflow file
+      **BEFORE** we use ``aws deploy`` to send a message to an endpoint. The endpoint:
+
+      .. code-block:: python
+
+          from django.http import HttpResponse
+          from config.celery_app import celery_app
+
+          def view(request):
+              celery_app.control.broadcast('shutdown')
+              return HttpResponse()
+
+  * Running Celery on the server:
+
+    * The systemd/init.d scripts Celery provides launches celery worker and beat using
+      detached and multi mode. In our script, we're going to use multi to run a single
+      Celery worker and beat. You can view this in our `start_server`_ script. If you're
+      curious, visit this doc for daemonization [4]_ and this GitHub issue thread [5]_
+      to get clarifications for confusing docs on deployment and ``multi usage``.
+    * We have to install something called supervisord. We'll need to set up
+      that configuration and run `supervisorctl restart project:*`. Our configuration in
+      this case allows us to run both Celery and our Django web app at the same time.
+      You don't have to have the website also running with supervisor. Note that to
+      properly shut down the celery workers, we need to manually send a signal.
 
 * For those who require multiple servers, having a celery worker per server is overkill
-  and a waste of money/resources, I instead advise you to use a new EC2 Autoscaling
-  Group. In the CI workflow file, you'll need to edit
+  and a waste of money/resources; I instead advise you to use a new EC2 Autoscaling
+  Group. This requires creating new launch templates since you don't want to attach
+  web security groups to your Celery based servers (you don't have to since the new
+  deployment groups don't have load balancer enabled, but just in case :P). If you can
+  afford it, I'd **REALLY** recommend three (one for celery beat since celery beat
+  can only be run on one server). But I'm assuming you can't; otherwise, why are you
+  reading this tutorial? Kidding. In the CI workflow file, you'll need to edit
   ``--target-instances ${{ secrets.AWS_AUTOSCALING_GROUP_NAME }}`` to have both your web
-  app's autoscaling group and your Celery worker autoscaling group.
+  app's autoscaling group and your Celery worker autoscaling group deployed (in separate
+  commands). AWS provides an environment variable called ``DEPLOYMENT_GROUP_NAME``
+  where you can determine in your `start_server`_ script which command to run [6]_.
+  There are examples for both in `start_server`_ for how to do this.
+
+  * The next thing to understand is Celery beat can only be run on one server. A
+    solution is to use RedBeat, a Redis based beat scheduler in which case you can
+    ignore this bullet point. But if you want to use django-celery-beat, then you'll
+    need to have your autoscaling group for celery beat (if you're using the three
+    autoscaling groups method) or all of celery (the two autoscaling groups method)
+    be taken down first. This can be done via your CodeDeploy solution. When setting
+    up your CodeDeploy deployment groups, choose a Deployment type "In-place", choose
+    your celery based EC2 autoscaling groups, deployment settings should use whatever
+    percent based one you want (just don't do all at once), and disable the load
+    balancer.
+
+For more background/daemonization docs for Celery:
+https://docs.celeryproject.org/en/stable/userguide/daemonizing.html
 
 **Can I run multiple websites like this?**
 
@@ -665,7 +791,7 @@ These are the additional resources that I used to create this tutorial
 Additional Notes
 ^^^^^^^^^^^^^^^^
 
-1. If you can't find the role, skip creating the User Group. Go back to IAM and go to
+.. [1] If you can't find the role, skip creating the User Group. Go back to IAM and go to
    the Users section. Press Create User and select "Attach existing policies directly",
    and finally press Create policy and copy the role below:
 
@@ -719,3 +845,59 @@ Additional Notes
             }
         ]
     }
+
+.. [2] All my GitHub secret names and values
+
+=============================== ==================================================
+Secret Name                     Secret Value Description
+=============================== ==================================================
+AWS_ACCESS_KEY_ID               The CodeDeploy access key ID we made in
+                                `Setting up Credentials`_
+AWS_SECRET_ACCESS_KEY           The CodeDeploy secret access key we made in
+                                `Setting up Credentials`_
+AWS_CODEDEPLOY_REGION           The region you created your CodeDeploy application
+AWS_CODEDEPLOY_APPLICATION_NAME The CodeDeploy application name
+AWS_CODEDEPLOY_DEPLOYMENT_GROUP The CodeDeploy deployment group name that we created in
+                                `Creating a CodeDeploy Deployment Group`_
+AWS_AUTOSCALING_GROUP_NAME      The EC2 Autoscaling Group name we made in
+                                `Setting up EC2 Auto Scaling Group`_
+CI_CD_DEPLOYMENT_AUTH_TOKEN     The authorization token to use for our single-execution
+                                per-deployment script
+=============================== ==================================================
+
+.. _Setting up Credentials: #setting-up-credentials
+.. _Creating a CodeDeploy Deployment Group: #creating-a-codedeploy-deployment-group
+.. _Setting up EC2 Auto Scaling Group: #setting-up-ec2-auto-scaling-group
+
+.. [3] All necessary Parameter Store names and values. Everything starts with your
+   prefix (in this case, it'll be "p/" for "project/" as that'll be my prefix). There
+   are plenty of other configuration/environment variables that you can find in the
+   `cookiecutter-django settings <https://cookiecutter-django.readthedocs.io/en/latest/settings.html>`_
+
+================================ ======================================================
+Parameter Names                  Parameter Value Description
+================================ ======================================================
+p/DJANGO_SECRET_KEY              Django secret key (same for Flask)
+p/DATABASE_URL                   Database url from AWS RDS
+p/REDIS_URL                      Cache url from AWS ElastiCache/RabbitMQ (used mostly
+                                 for those using Celery). It can also be blank if you
+                                 don't choose to use Celery/a cache yet
+p/CELERY_BROKER_URL              Same as REDIS_URL
+p/DJANGO_AWS_STORAGE_BUCKET_NAME The AWS S3 bucket where we store our media and static
+                                 files
+p/DJANGO_ADMIN_URL               An extremely long, randomized path where our admin url
+                                 will be (e.g. ``base62-string/``)
+p/MAILGUN_API_KEY                The email API key. For AWS infrastructure, it is
+                                 probably more wise to use AWS SES for cost purposes.
+p/MAILGUN_DOMAIN                 The email domain. For AWS infrastructure, it is
+                                 probably more wise to use AWS SES for cost purposes.
+================================ ======================================================
+
+.. [4] Celery Daemonization:
+   https://docs.celeryproject.org/en/stable/userguide/daemonizing.html
+
+.. [5] Celery Beat daemonization GitHub issue thread:
+   https://github.com/celery/celery/issues/4304
+
+.. [6] Environment variables for CodeDeploy:
+   https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#reference-appspec-file-structure-environment-variable-availability

@@ -49,7 +49,7 @@ if READ_DOT_ENV_FILE:
 
 # For production with parameter store
 READ_JSON_FILE = env.bool("DJANGO_READ_JSON_FILE", default=False)
-if READ_JSON_FILE:
+if READ_JSON_FILE or (ROOT_DIR / ".env.json").is_file():
     env.read_json(ROOT_DIR / ".env.json", value_handler=lambda x: x["Value"])
 
 # GENERAL
