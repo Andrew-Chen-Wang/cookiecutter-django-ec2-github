@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd /home/ubuntu
+
 # CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
 # CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
 # CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
@@ -14,7 +16,7 @@ PARAMETER_STORE_PREFIX="/DONATE_ANYTHING/"
 # Grabbing our environment variables from Parameter Store and storing it in a JSON file
 # To specify a region (helpful for multi region deployments) by adding --region us-east-2
 echo $(aws ssm get-parameters-by-path --with-decryption \
---path "${PARAMETER_STORE_PREFIX}") > /.env.json
+--path "${PARAMETER_STORE_PREFIX}") > /home/ubuntu/.env.json
 
 # -------------------------------------------------------------------------------------
 

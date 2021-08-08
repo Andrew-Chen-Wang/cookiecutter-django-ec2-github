@@ -86,6 +86,7 @@ python3.9 -m ensurepip --default-pip --user
 # My dependencies
 sudo apt install -y libpq-dev gettext
 # We're going to create a virtual environment to not screw up default packages
+cd /home/ubuntu
 python3.9 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel

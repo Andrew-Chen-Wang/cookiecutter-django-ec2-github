@@ -155,8 +155,8 @@ manager only has certain permissions.
 1. In the AWS Console, search for IAM.
 2. Create a User Group. The name can just be your "project-name-Deployment".
 3. Scroll to the permissions section and filter by "CodeDeploy" in the search field.
-   Make sure to press enter. Check mark the role called ``AWSCodeDeployRole``. If it's
-   not there, view [1]_ at the
+   Make sure to press enter. Check mark the role called ``AWSCodeDeployDeployerAccess``.
+   If it's not there, view [1]_ at the
    `additional notes section at the bottom <#additional-notes>`_.
 4. Select Users or find a button saying Create User (DO NOT create a User Group)
 5. Give it a username like "project-name-CodeDeploy" and give it Programmatic Access.
@@ -178,7 +178,27 @@ manager only has certain permissions.
    service CodeDeploy and select it. At the bottom, select "CodeDeploy" (DO NOT select
    ECS or lambda). Then keep going until you need to name your role. I would call it
    "project-CodeDeploy". Then press Create role.
-10. We need to create another role that'll be used in our EC2 instance itself.
+10. After creating the role, we need to add an inline policy. For simplicity sake,
+    go to the role's detail. Create an inline policy. Add the following:
+
+    .. code-block:: json
+
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "iam:PassRole",
+                        "ec2:CreateTags",
+                        "ec2:RunInstances"
+                    ],
+                    "Resource": "*"
+                }
+            ]
+        }
+
+11. We need to create another role that'll be used in our EC2 instance itself.
     Select EC2. In the policy section, if you're using django-storages (e.g. if you're
     using cookiecutter-django), then search up S3 and attach S3 full access role.
     If you don't have that, just press next and now no policy/permission has been given
@@ -211,7 +231,9 @@ in the next section about security groups.
    You can read about creating subnets here: https://docs.aws.amazon.com/vpc/latest/userguide/working-with-vpcs.html#AddaSubnet
    You can read more about the CIDR blocks here: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-sizing-ipv4
 
-4. Once you've created your subnet, go to the Internet Gateway tab and press Create
+4. Once you've created your subnets, click one subnet, press Actions, press View
+   details, press Modify auto-assign IP settings, and enable auto-assign IPv4 addresses.
+   Do this for each subnet. Go to the Internet Gateway tab and press Create
    internet gateway. The name can just be your project's name. Press Create.
 5. There should be a banner at the top saying "Attach to a VPC". If not, go to your
    internet gateway. On the top right, there should be a button saying "Action." Press
@@ -311,6 +333,10 @@ information or run ``python manage.py shell`` to access production data.
 
    * Type All Traffic, with custom source type, and find your first security group
      in the Source (it should say the name of the security group you just created).
+  * Later on, if you ever need to access the terminal/shell inside any of your instances,
+    head to Security Groups again, select and edit this group's inbound rules, and
+    attach the SSH protocol type with CIDR 0.0.0.0/0. Then, go to an EC2 instance,
+    select connect, and you should now be able to connect via SSH.
 
 4. This step may be optional depending on your use-case. For many Django applications
    we typically use the database; this step covers both the database and cache. Just
@@ -798,6 +824,7 @@ These are the additional resources that I used to create this tutorial
 * If you're curious what pricing and its price history for spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
 * Documentation for pricing for Spot Requests using Autoscaling: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-configuration-strategies.html
 * Creating a CodeDeploy service role: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
+* Launch template support for service role: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-launch-template-permissions.html#policy-example-create-launch-template
 
 Additional Notes
 ^^^^^^^^^^^^^^^^
@@ -812,45 +839,57 @@ Additional Notes
         "Version": "2012-10-17",
         "Statement": [
             {
+                "Action": [
+                    "codedeploy:Batch*",
+                    "codedeploy:CreateDeployment",
+                    "codedeploy:Get*",
+                    "codedeploy:List*",
+                    "codedeploy:RegisterApplicationRevision"
+                ],
+                "Effect": "Allow",
+                "Resource": "*"
+            },
+            {
+                "Sid": "CodeStarNotificationsReadWriteAccess",
                 "Effect": "Allow",
                 "Action": [
-                    "autoscaling:CompleteLifecycleAction",
-                    "autoscaling:DeleteLifecycleHook",
-                    "autoscaling:DescribeAutoScalingGroups",
-                    "autoscaling:DescribeLifecycleHooks",
-                    "autoscaling:PutLifecycleHook",
-                    "autoscaling:RecordLifecycleActionHeartbeat",
-                    "autoscaling:CreateAutoScalingGroup",
-                    "autoscaling:UpdateAutoScalingGroup",
-                    "autoscaling:EnableMetricsCollection",
-                    "autoscaling:DescribePolicies",
-                    "autoscaling:DescribeScheduledActions",
-                    "autoscaling:DescribeNotificationConfigurations",
-                    "autoscaling:SuspendProcesses",
-                    "autoscaling:ResumeProcesses",
-                    "autoscaling:AttachLoadBalancers",
-                    "autoscaling:AttachLoadBalancerTargetGroups",
-                    "autoscaling:PutScalingPolicy",
-                    "autoscaling:PutScheduledUpdateGroupAction",
-                    "autoscaling:PutNotificationConfiguration",
-                    "autoscaling:PutWarmPool",
-                    "autoscaling:DescribeScalingActivities",
-                    "autoscaling:DeleteAutoScalingGroup",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeInstanceStatus",
-                    "ec2:TerminateInstances",
-                    "tag:GetResources",
-                    "sns:Publish",
-                    "cloudwatch:DescribeAlarms",
-                    "cloudwatch:PutMetricAlarm",
-                    "elasticloadbalancing:DescribeLoadBalancers",
-                    "elasticloadbalancing:DescribeInstanceHealth",
-                    "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
-                    "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
-                    "elasticloadbalancing:DescribeTargetGroups",
-                    "elasticloadbalancing:DescribeTargetHealth",
-                    "elasticloadbalancing:RegisterTargets",
-                    "elasticloadbalancing:DeregisterTargets"
+                    "codestar-notifications:CreateNotificationRule",
+                    "codestar-notifications:DescribeNotificationRule",
+                    "codestar-notifications:UpdateNotificationRule",
+                    "codestar-notifications:Subscribe",
+                    "codestar-notifications:Unsubscribe"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "StringLike": {
+                        "codestar-notifications:NotificationsForResource": "arn:aws:codedeploy:*"
+                    }
+                }
+            },
+            {
+                "Sid": "CodeStarNotificationsListAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "codestar-notifications:ListNotificationRules",
+                    "codestar-notifications:ListTargets",
+                    "codestar-notifications:ListTagsforResource",
+                    "codestar-notifications:ListEventTypes"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Sid": "CodeStarNotificationsChatbotAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "chatbot:DescribeSlackChannelConfigurations"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Sid": "SNSTopicListAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "sns:ListTopics"
                 ],
                 "Resource": "*"
             }

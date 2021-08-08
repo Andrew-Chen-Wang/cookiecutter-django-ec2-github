@@ -60,6 +60,7 @@ if READ_JSON_FILE or (ROOT_DIR / ".env.json").is_file():
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = env.bool("DJANGO_DEBUG", False)
+SINGLE_CD_AUTHORIZATION_TOKEN = env.str("SINGLE_CD_AUTHORIZATION_TOKEN", "")
 # Local time zone. Choices are
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # though not all of them may be available with every OS.
