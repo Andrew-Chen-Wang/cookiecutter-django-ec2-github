@@ -156,7 +156,7 @@ manager only has certain permissions.
 2. Create a User Group. The name can just be your "project-name-Deployment".
 3. Scroll to the permissions section and filter by "CodeDeploy" in the search field.
    Make sure to press enter. Check mark the role called ``AWSCodeDeployRole``. If it's
-   not there, view Note 1 [1]_ at the
+   not there, view [1]_ at the
    `additional notes section at the bottom <#additional-notes>`_.
 4. Select Users or find a button saying Create User (DO NOT create a User Group)
 5. Give it a username like "project-name-CodeDeploy" and give it Programmatic Access.
@@ -497,6 +497,9 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
    least number of users are predicted to be online. Make sure to enable auto minor
    version upgrade. Also be sure to select a maintenance window (something AWS would
    randomly perform otherwise). Leave the rest of the defaults alone and press Create.
+8. It'll take a couple minutes to create the database, so keep going. When you need to
+   construct your ``DATABASE_URL`` for Parameter Store, your URL will look like this:
+   ``postgresql://username:password@endpoint:port/database_name``
 
 Make sure you did not delete those generated values. We still need to store everything
 inside Parameter Store, our environment variable / secrets manager.
@@ -542,15 +545,15 @@ parameter store values I used here for a default cookiecutter-django project: [3
 1. Search for Systems Manager. Go to the Parameter Store tab.
 2. Double check that you are in the correct region.
 3. For each environment variable you need, press Create parameter. I **highly highly**
-   recommend that all your parameter names have a prefix like ``PROJECT/SECRET`` where
+   recommend that all your parameter names have a prefix like ``/PROJECT/SECRET`` where
    "SECRET" is the actual name you want the environment variable to be. This allows for
    easier identification of parameters between projects hosted on the same AWS account.
    Use Standard tier and text data type and paste your environment variables.
 4. That prefix is extremely important in all your secret values. In `start_server`_,
    change that prefix value to yours. In my Python application, I'm using
    ``os.environ["DATABASE_URL"]`` but my parameter store key is called
-   ``PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
-   prefix (i.e. the ``PROJECT/``) and stored it as a JSON in the path ``/.env.json``.
+   ``/PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
+   prefix (i.e. the ``/PROJECT/``) and stored it as a JSON in the path ``/.env.json``.
    For cookiecutter-django or django-environ users, I've created a class ``Env`` which
    takes that JSON file and inserts the key/values into ``os.environ`` (you can view
    the class in `config/settings/base.py`_.
@@ -627,7 +630,7 @@ for my previous employer for Flask, but the solution is actually quite simple to
    There, you see me running an entire deployment script. It migrates our database
    on to the CI database (this is a Django only thing). Then, we can grab the latest
    migration/revision ID. It loops (with 1 second delay) until we receive the right
-   data form our endpoint that matches the migration we need.
+   data from our endpoint that matches the migration we need.
 3. Go back to our GitHub action workflow file and adjust the last run step to your need,
    including what secrets value to use and the Django command to run.
 
@@ -738,10 +741,10 @@ running Celery on one instance:
       detached and multi mode. In our script, we're going to use multi to run a single
       Celery worker and beat. You can view this in our `start_server`_ script. If you're
       curious, visit this doc for daemonization [4]_ and this GitHub issue thread [5]_
-      to get clarifications for confusing docs on deployment and ``multi usage``.
+      to get clarifications for confusing docs on deployment and ``multi`` usage.
     * We have to install something called supervisord. We'll need to set up
-      that configuration and run `supervisorctl restart project:*`. Our configuration in
-      this case allows us to run both Celery and our Django web app at the same time.
+      that configuration and run ``supervisorctl restart project:*``. Our configuration
+      in this case allows us to run both Celery and our Django web app at the same time.
       You don't have to have the website also running with supervisor. Note that to
       properly shut down the celery workers, we need to manually send a signal.
 
@@ -878,28 +881,28 @@ CI_CD_DEPLOYMENT_AUTH_TOKEN     The authorization token to use for our single-ex
 .. _Setting up EC2 Auto Scaling Group: #setting-up-ec2-auto-scaling-group
 
 .. [3] All necessary Parameter Store names and values. Everything starts with your
-   prefix (in this case, it'll be "p/" for "project/" as that'll be my prefix). There
+   prefix (in this case, it'll be "/p/" for "/project/" as that'll be my prefix). There
    are plenty of other configuration/environment variables that you can find in the
    `cookiecutter-django settings <https://cookiecutter-django.readthedocs.io/en/latest/settings.html>`_
 
-================================ ======================================================
-Parameter Names                  Parameter Value Description
-================================ ======================================================
-p/DJANGO_SECRET_KEY              Django secret key (same for Flask)
-p/DATABASE_URL                   Database url from AWS RDS
-p/REDIS_URL                      Cache url from AWS ElastiCache/RabbitMQ (used mostly
-                                 for those using Celery). It can also be blank if you
-                                 don't choose to use Celery/a cache yet
-p/CELERY_BROKER_URL              Same as REDIS_URL
-p/DJANGO_AWS_STORAGE_BUCKET_NAME The AWS S3 bucket where we store our media and static
-                                 files
-p/DJANGO_ADMIN_URL               An extremely long, randomized path where our admin url
-                                 will be (e.g. ``base62-string/``)
-p/MAILGUN_API_KEY                The email API key. For AWS infrastructure, it is
-                                 probably more wise to use AWS SES for cost purposes.
-p/MAILGUN_DOMAIN                 The email domain. For AWS infrastructure, it is
-                                 probably more wise to use AWS SES for cost purposes.
-================================ ======================================================
+================================= ======================================================
+Parameter Names                   Parameter Value Description
+================================= ======================================================
+/p/DJANGO_SECRET_KEY              Django secret key (same for Flask)
+/p/DATABASE_URL                   Database url from AWS RDS
+/p/REDIS_URL                      Cache url from AWS ElastiCache/RabbitMQ (used mostly
+                                  for those using Celery). It can also be blank if you
+                                  don't choose to use Celery/a cache yet
+/p/CELERY_BROKER_URL              Same as REDIS_URL
+/p/DJANGO_AWS_STORAGE_BUCKET_NAME The AWS S3 bucket where we store our media and static
+                                  files
+/p/DJANGO_ADMIN_URL               An extremely long, randomized path where our admin url
+                                  will be (e.g. ``base62-string/``)
+/p/MAILGUN_API_KEY                The email API key. For AWS infrastructure, it is
+                                  probably more wise to use AWS SES for cost purposes.
+/p/MAILGUN_DOMAIN                 The email domain. For AWS infrastructure, it is
+                                  probably more wise to use AWS SES for cost purposes.
+================================= ======================================================
 
 .. [4] Celery Daemonization:
    https://docs.celeryproject.org/en/stable/userguide/daemonizing.html

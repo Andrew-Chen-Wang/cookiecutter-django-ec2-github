@@ -1,6 +1,7 @@
 """
 Base settings to build other settings files upon.
 """
+import json
 from pathlib import Path
 
 import environ
@@ -27,8 +28,6 @@ class Env(environ.Env):
         """
         data = {}
         if json_file is not None:
-            import json
-
             data = json.loads(json_file.read_text())
         # if you're on Python 3.9, you can just do `data |= overrides`
         for key, value in {**data, **overrides}.items():
@@ -50,7 +49,12 @@ if READ_DOT_ENV_FILE:
 # For production with parameter store
 READ_JSON_FILE = env.bool("DJANGO_READ_JSON_FILE", default=False)
 if READ_JSON_FILE or (ROOT_DIR / ".env.json").is_file():
-    env.read_json(ROOT_DIR / ".env.json", value_handler=lambda x: x["Value"])
+    env.read_json(
+        ROOT_DIR / ".env.json",
+        # Replacing the prefix
+        key_handler=lambda x: x.replace("/DONATE_ANYTHING/", "", 1),
+        value_handler=lambda x: x["Value"],
+    )
 
 # GENERAL
 # ------------------------------------------------------------------------------

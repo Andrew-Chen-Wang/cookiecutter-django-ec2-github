@@ -5,8 +5,8 @@
 # CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
 # CHANGE THIS PREFIX TO YOUR PARAMETER STORE PREFIX!!!!!!!!!
 # We're doing everything by path (i.e. glob) so make sure you have
-# that slash at the end!
-PARAMETER_STORE_PREFIX="DONATE_ANYTHING/"
+# the slash at the beginning and end of the prefix!
+PARAMETER_STORE_PREFIX="/DONATE_ANYTHING/"
 
 # Storing all secrets in a .env.json file in the root directory. I've implemented
 # a wrapper around django-environ to read in JSON files as well in config/settings/base.py
