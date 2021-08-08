@@ -114,11 +114,11 @@ jobs:
         if: ${{ success() }}
         run: |
           aws deploy create-deployment \
-          --deployment-group-name ${{ secrets.AWS_CODEDEPLOY_DEPLOYMENT_GROUP }} \
-          --target-instances ${{ secrets.AWS_AUTOSCALING_GROUP_NAME }} \
-          --description ${{ github.sha }} \
-          --application-name ${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
-          --github-location repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
+          --deployment-group-name=${{ secrets.AWS_CODEDEPLOY_DEPLOYMENT_GROUP }} \
+          --target-instances=${{ secrets.AWS_AUTOSCALING_GROUP_NAME }} \
+          --description=${{ github.sha }} \
+          --application-name=${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
+          --github-location=repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
 
 # You need to change this section for your single-execution per-deployment script
 # based on your needs
