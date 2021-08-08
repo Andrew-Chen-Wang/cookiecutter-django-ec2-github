@@ -614,7 +614,8 @@ running the server.
    collecting staticfiles, and installing my Python packages. Adjust to your needs.
    `start_server`_ is preparing the actual start command for my server (for Django,
    it's gunicorn). If you choose to delete the ``stop_server`` script, then make sure
-   to update ``appspec.yml``.
+   to update ``appspec.yml``. Additionally, you'll need to change the region in the
+   CodeDeploy installation at the top.
 3. In `install_dependencies`_, change the domain in the NGINX configuration iff you are
    using sync. If you have websockets, long polling, or are using an async framework,
    there are additional configurations you can add to your NGINX configuration if you

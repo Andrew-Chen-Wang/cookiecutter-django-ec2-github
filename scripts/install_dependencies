@@ -1,6 +1,16 @@
 #!/bin/bash
 sudo apt update
 sudo apt -y upgrade
+sudo apt install -y ruby-full wget
+
+cd /home/ubuntu
+# Installing CodeDeploy agent - Required
+# https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+### TODO Change this to your region!
+wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
+chmod +x ./install
+sudo ./install auto -v releases/codedeploy-agent-###.deb > /tmp/logfile
+sudo service codedeploy-agent start
 
 # Installing NGINX, our reverse buffering proxy
 # ------------------------------------------------------------------------------------
@@ -86,7 +96,6 @@ python3.9 -m ensurepip --default-pip --user
 # My dependencies
 sudo apt install -y libpq-dev gettext
 # We're going to create a virtual environment to not screw up default packages
-cd /home/ubuntu
 python3.9 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel
