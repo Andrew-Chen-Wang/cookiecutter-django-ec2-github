@@ -38,7 +38,7 @@ export DJANGO_SETTINGS_MODULE="config.settings.production"
 # different web framework, understand that my port is on 5000 so that NGINX, the reverse
 # proxy, can handle all the requests.
 # How many workers? https://docs.gunicorn.org/en/stable/design.html#how-many-workers
-gunicorn config.wsgi --bind 0.0.0.0:5000
+gunicorn config.wsgi --bind 0.0.0.0:5000 --daemon
 # -------------------------------------------------------------------------------------
 
 # Multiple servers, one deployment group for Celery and another for Django
