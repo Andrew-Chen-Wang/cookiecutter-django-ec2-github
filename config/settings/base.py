@@ -29,6 +29,9 @@ class Env(environ.Env):
         data = {}
         if json_file is not None:
             data = json.loads(json_file.read_text())
+            if "Parameters" in data and isinstance(data["Parameters"], list):
+                # AWS based environment file, so we need to reconstruct
+                data = {x["Name"]: x for x in data["Parameters"]}
         # if you're on Python 3.9, you can just do `data |= overrides`
         for key, value in {**data, **overrides}.items():
             # This is putting everything into the Python process's environment
