@@ -400,12 +400,25 @@ response.
    DO NOT checkmark Request Spot Instances
    since it's configurable in your autoscaling group. If you're curious what pricing
    spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
-   Select the IAM instance profile we made in `Setting up Credentials`_ step 10.
-   Finally, Press "Create launch template."
+   Select the IAM instance profile we made in `Setting up Credentials`_ step 10. Find
+   the User Data section and copy and paste this code (it's from `here <https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html>`_).
+   Finally, Press "Create launch template":
+
+   .. code-block:: shell
+
+       #!/bin/bash
+       sudo apt update
+       sudo apt -y upgrade
+       cd /home/ubuntu/
+       wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
+       chmod +x ./install
+       sudo ./install auto > /tmp/logfile
+       sudo service codedeploy-agent start
+
 5. Search up EC2 and head to the Auto Scaling Groups tab (from the side bar menu at the
    very bottom). Press Create Auto Scaling Group.
 6. The name can be something like "project-EC2AutoScalingGroup". Select the Launch
-   Template you just made. Use the default version and just press Next.
+   Template you just made. Use the "Latest" version and just press Next.
 7. Instance purchase options should have an option saying "Combine purchase options and
    instance types" so that you can use both On-Demand and Spot instances. For us, we're
    going to have 0 On-Demand instances. "Spot allocation strategy per Availability Zone"
