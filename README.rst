@@ -208,9 +208,10 @@ manager only has certain permissions.
 12. After creating this role, in the next few steps, we'll be needing access to
     Parameter Store, the place where we store our servers' environment variables. To do
     this, go to the role and create an inline policy. Use JSON and replace the Resource
-    value with your account ID and change "PROJECT" to your path prefix. Your path
-    prefix might be your project's name but all uppercase. This will be better known
-    once we get to the step about Parameter Store:
+    value with your account ID, change the region (e.g. us-east-2) and change "PROJECT"
+    to your path prefix. Your path prefix might be your project's name but all
+    uppercase. This will be better known once we get to the step about Parameter Store.
+    The role can be called "project-read-parameters":
 
     .. code-block:: json
 
@@ -220,7 +221,7 @@ manager only has certain permissions.
                 {
                     "Effect": "Allow",
                     "Action": "ssm:GetParametersByPath",
-                    "Resource": "arn:aws:ssm:us-east-2:ACCOUNT_ID:parameter/PROJECT/*"
+                    "Resource": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/PROJECT/*"
                 }
             ]
         }
@@ -615,7 +616,8 @@ parameter store values I used here for a default cookiecutter-django project: [3
    ``os.environ["DATABASE_URL"]`` but my parameter store key is called
    ``/PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
    prefix (i.e. the ``/PROJECT/``) and stored it as a JSON in the path
-   ``/home/ubuntu/.env.json``.
+   ``/home/ubuntu/.env.json``. Also change the region from us-east-2 to wherever your
+   parameter values are located (yes, they are split by region).
    For cookiecutter-django or django-environ users, I've created a class ``Env`` which
    takes that JSON file and inserts the key/values into ``os.environ`` (you can view
    the class in `config/settings/base.py`_.

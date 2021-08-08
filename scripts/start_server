@@ -14,8 +14,7 @@ PARAMETER_STORE_PREFIX="/DONATE_ANYTHING/"
 # a wrapper around django-environ to read in JSON files as well in config/settings/base.py
 # -------------------------------------------------------------------------------------
 # Grabbing our environment variables from Parameter Store and storing it in a JSON file
-# To specify a region (helpful for multi region deployments) by adding --region us-east-2
-echo $(aws ssm get-parameters-by-path --with-decryption \
+echo $(aws ssm get-parameters-by-path --with-decryption --region us-east-2 \
 --path "${PARAMETER_STORE_PREFIX}") > /home/ubuntu/.env.json
 
 # -------------------------------------------------------------------------------------
