@@ -1,10 +1,11 @@
 GitHub Actions EC2 Blue/Green Deployment
 ========================================
 
-================  ============================================================
+================  =====================================================================
 Created by        `Andrew-Chen-Wang`_
-Created on        4 August 2021
-================  ============================================================
+Created on        4 August 2021 (for posterity since AWS changes stuff now and then)
+Finished Writing  8 August 2021 (I slacked off for a day :P)
+================  =====================================================================
 
 Cookiecutter Django with GitHub Actions CD (on push to main/master and manual deployment
 using a button) to EC2 using CodeDeploy Blue/Green deployment method for zero downtime.
@@ -479,6 +480,7 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
    needs. I always prefer the latest database version since database services are very
    good with backwards compatibility. Use the Production template. Call the database
    instance "project-database-01" (in case you need to set up read replicas later on).
+   Use PostgreSQL v12 so that we can use the AWS free tier.
 3. You should create a random username and password. I highly recommend you run this
    script to do so (there is also an option to let AWS generate a password. If you
    select that option instead, then, after you create the database, the password will
@@ -518,8 +520,8 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
         generate_random_string(64, using_digits=True, using_ascii_letters=True)
     )
 
-4. My db instance class was a Burstable db.t3.micro costing me $13 per month, excluding
-   monthly storage costs (which is cheaper if you constantly increment your storage by
+4. My db instance class was a Burstable db.t2.micro costing with AWS free tier, excluding
+   monthly storage costs (which is cheap if you constantly increment your storage by
    monitoring storage consumption). If you need help with calculating prices, visit
    `calculator.aws <https://calculator.aws/>`_. For my Storage type, I chose General
    Purpose (SSD) with an allocated storage of 20 GiB, the minimum, costing me $4.60.
