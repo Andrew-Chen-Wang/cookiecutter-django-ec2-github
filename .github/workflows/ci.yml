@@ -112,13 +112,15 @@ jobs:
       - name: Deploy to CodeDeploy
         # success() checks if the previous job was canceled or not
         if: ${{ success() }}
+        env:
+          DEPLOYMENT_GROUP: ${{ secrets.AWS_CODEDEPLOY_DEPLOYMENT_GROUP }}
+          DEPLOY_APP_NAME: ${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }}
         run: |
           aws deploy create-deployment \
-          --deployment-group-name=${{ secrets.AWS_CODEDEPLOY_DEPLOYMENT_GROUP }} \
-          --target-instances=${{ secrets.AWS_AUTOSCALING_GROUP_NAME }} \
-          --description=${{ github.sha }} \
-          --application-name=${{ secrets.AWS_CODEDEPLOY_APPLICATION_NAME }} \
-          --github-location=repository=${{ github.event.repository.name }},commitId=${{ github.sha }}
+          --deployment-group-name "$DEPLOYMENT_GROUP" \
+          --description="$GITHUB_SHA" \
+          --application-name "$DEPLOY_APP_NAME" \
+          --github-location repository="$GITHUB_REPOSITORY",commitId="$GITHUB_SHA"
 
 # You need to change this section for your single-execution per-deployment script
 # based on your needs
