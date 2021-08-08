@@ -205,6 +205,25 @@ manager only has certain permissions.
     If you don't have that, just press next and now no policy/permission has been given
     to your EC2 instance. Call it "project-ec2". Later on, you can change the policies
     on this role, so don't worry!
+12. After creating this role, in the next few steps, we'll be needing access to
+    Parameter Store, the place where we store our servers' environment variables. To do
+    this, go to the role and create an inline policy. Use JSON and replace the Resource
+    value with your account ID and change "PROJECT" to your path prefix. Your path
+    prefix might be your project's name but all uppercase. This will be better known
+    once we get to the step about Parameter Store:
+
+    .. code-block:: json
+
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "ssm:GetParametersByPath",
+                    "Resource": "arn:aws:ssm:us-east-2:ACCOUNT_ID:parameter/PROJECT/*"
+                }
+            ]
+        }
 
 To specify which region this role is allowed to access/manage CodeDeploy, follow this
 guide: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
@@ -595,7 +614,8 @@ parameter store values I used here for a default cookiecutter-django project: [3
    change that prefix value to yours. In my Python application, I'm using
    ``os.environ["DATABASE_URL"]`` but my parameter store key is called
    ``/PREFIX/DATABASE_URL``. This is because I grabbed all the parameters via the path
-   prefix (i.e. the ``/PROJECT/``) and stored it as a JSON in the path ``/.env.json``.
+   prefix (i.e. the ``/PROJECT/``) and stored it as a JSON in the path
+   ``/home/ubuntu/.env.json``.
    For cookiecutter-django or django-environ users, I've created a class ``Env`` which
    takes that JSON file and inserts the key/values into ``os.environ`` (you can view
    the class in `config/settings/base.py`_.
@@ -606,6 +626,10 @@ parameter store values I used here for a default cookiecutter-django project: [3
    ``if "AWS_ACCESS_KEY_ID" not in os.environ``, then I'd require the parameter store
    values. The region should match with your S3 bucket region. If not, then you'll
    still want to manually set it with a Parameter Store value.
+6. If you recall from `Setting up Credentials`_, we made a path prefix there for our
+   resource. The point of having it there was so that we restrict our EC2 instance from
+   seeing other environment variables not designated for this project to see. Double
+   check your path prefix is the same.
 
 .. _config/settings/base.py: ./config/settings/base.py
 .. _config/settings/production.py: ./config/settings/production.py

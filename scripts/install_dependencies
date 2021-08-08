@@ -2,7 +2,10 @@
 sudo apt update
 sudo apt -y upgrade
 
+# Destination folder
 cd /home/ubuntu
+# AWS CLI needed to get parameters
+sudo apt install -y awscli
 
 # Installing NGINX, our reverse buffering proxy
 # ------------------------------------------------------------------------------------
