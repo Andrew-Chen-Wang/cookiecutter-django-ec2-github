@@ -24,6 +24,7 @@ echo $(aws ssm get-parameters-by-path --with-decryption --region us-east-2 \
 # websockets, long polling, etc.).
 
 source venv/bin/activate
+export DJANGO_SETTINGS_MODULE="config.settings.production"
 
 # Single server running both celery and web server
 # -------------------------------------------------------------------------------------
