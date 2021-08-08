@@ -1,15 +1,15 @@
 version: 0.0
 os: linux
-files:
-
 # You can find how this is configured here:
 # https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-files.html
 # source will only contain your project's files.
 # Spacing docs: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file.html#reference-appspec-file-spacing
-
+files:
   - source: /
     destination: /home/ubuntu/
-#  - file_exists_behavior: overwrite is not needed since Blue/Green brings up new instances
+  - file_exists_behavior: overwrite
+# This last point isn't needed since Blue/Green brings up new instances, but maybe
+# some installation script like ./install could get in the way.
 
 # ------------------------------------------------------------------------------------
 

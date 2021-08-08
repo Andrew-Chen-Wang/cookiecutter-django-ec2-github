@@ -41,9 +41,9 @@ sudo touch /etc/nginx/sites-enabled/project.conf
 
 sudo cat <<EOT > /etc/nginx/sites-enabled/project.conf
 server {
-  set $my_host $host;
-  if ($host ~ "\d+\.\d+\.\d+\.\d+") {
-      set $my_host "donate-anything.org";
+  set \$my_host \$host;
+  if (\$host ~ "\d+\.\d+\.\d+\.\d+") {
+      set \$my_host "donate-anything.org";
   }
 
   client_max_body_size 2G;
@@ -53,9 +53,9 @@ server {
 
   location / {
     proxy_pass http://127.0.0.1:5000;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Host $my_host;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Host \$my_host;
     # we don't want nginx trying to do something clever with
     # redirects, we set the Host: header above already.
     proxy_redirect off;
@@ -63,7 +63,7 @@ server {
     ## The following is only needed for async frameworks:
     ## NGINX example https://www.nginx.com/blog/websocket-nginx/
     ## To turn off buffering, you only need to add `proxy_buffering off;`
-    # proxy_set_header Upgrade $http_upgrade;
+    # proxy_set_header Upgrade \$http_upgrade;
     # proxy_set_header Connection 'upgrade';
     ## 25 minutes of no data closes connection
     # proxy_read_timeout 1500s;

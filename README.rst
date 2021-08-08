@@ -402,13 +402,14 @@ response.
    spot instances are, head to EC2/Spot Requests and find Pricing History at the top.
    Select the IAM instance profile we made in `Setting up Credentials`_ step 10. Find
    the User Data section and copy and paste this code (it's from `here <https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html>`_).
-   Finally, Press "Create launch template":
+   Make sure you change the region. Finally, Press "Create launch template":
 
    .. code-block:: shell
 
        #!/bin/bash
        sudo apt update
        sudo apt -y upgrade
+       sudo apt install -y ruby-full wget
        cd /home/ubuntu/
        wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
        chmod +x ./install
@@ -839,6 +840,12 @@ These are the additional resources that I used to create this tutorial
 * Documentation for pricing for Spot Requests using Autoscaling: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-configuration-strategies.html
 * Creating a CodeDeploy service role: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
 * Launch template support for service role: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-launch-template-permissions.html#policy-example-create-launch-template
+* Installing the CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+
+Thanks to this tutorial for helping me install the CodeDeploy agent in the right place
+(turns out, someone else had already written a piece on this! Though using CodePipeline
+might be a turn-off):
+https://medium.com/cloudwithmore/blue-green-deployment-for-autoscaling-groups-with-codepipeline-codebuild-and-codedeploy-part-3-7-9d1d1d1824e7
 
 Additional Notes
 ^^^^^^^^^^^^^^^^
