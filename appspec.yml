@@ -5,7 +5,7 @@ os: linux
 # source will only contain your project's files.
 # Spacing docs: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file.html#reference-appspec-file-spacing
 files:
-  - source: /
+  - source: .
     destination: /home/ubuntu/
 file_exists_behavior: OVERWRITE
 # This last point isn't needed since Blue/Green brings up new instances, but maybe

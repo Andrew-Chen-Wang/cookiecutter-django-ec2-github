@@ -698,7 +698,9 @@ You have two options:
    Select ``CI``. Then, press "Run workflow" on your default branch.
 2. You can also just commit new changes to your default branch.
 
-Both ways work now and forever in the future!
+Both ways work now and forever in the future! But this initial deployment will fail
+since we didn't bring up an instance yet. Re-run your CI manually this time using the
+GitHub actions tab, and voila a fully configured full-stack Django web server.
 
 Credit and License
 ------------------
