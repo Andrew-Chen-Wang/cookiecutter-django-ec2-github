@@ -16,7 +16,7 @@ file_exists_behavior: OVERWRITE
 # To learn more about hooks, visit the docs here:
 # https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#appspec-hooks-server
 hooks:
-  BeforeInstall:
+  AfterInstall:
     - location: scripts/install_dependencies
       timeout: 300
       runas: root

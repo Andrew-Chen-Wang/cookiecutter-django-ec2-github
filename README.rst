@@ -622,7 +622,7 @@ running the server.
    going on. In a nutshell, this is how CodeDeploy knows 1. where to store our project
    files on the server and 2. where and what scripts to run using specific hooks which
    have a unique lifecycle (e.g. ApplicationStop will trigger ApplicationStart but skips
-   BeforeInstall).
+   AfterInstall).
 2. Copy the `scripts <./scripts>`_ directory. In `install_dependencies`_, you can see me
    updating and upgrading Ubuntu packages, setting up my preferred Python version,
    collecting staticfiles, and installing my Python packages. Adjust to your needs.
@@ -843,6 +843,7 @@ These are the additional resources that I used to create this tutorial
 * Creating a CodeDeploy service role: https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-service-role.html#getting-started-create-service-role-console
 * Launch template support for service role: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-launch-template-permissions.html#policy-example-create-launch-template
 * Installing the CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+* Order of hooks: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-example.html#appspec-file-example-server
 
 Thanks to this tutorial for helping me install the CodeDeploy agent in the right place
 (turns out, someone else had already written a piece on this! Though using CodePipeline
