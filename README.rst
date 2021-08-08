@@ -303,6 +303,9 @@ cents and your Load Balancer will start charging quite a bit. Maybe $12 per mont
    use protocol version HTTP1 (again since we let ALB handle HTTPS). The default health
    check of HTTP and path being "/" is good enough. Press next and then press "Create
    target group"
+6. Go to Route 53 and enter the hosted zone for your domain. Create a new A record.
+   Mark it as an alias. Select the option for load balancer. Select the region your
+   load balancer is in, then select your load balancer.
 
 Setting up Security Groups
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -354,10 +357,10 @@ information or run ``python manage.py shell`` to access production data.
 
    * Type All Traffic, with custom source type, and find your first security group
      in the Source (it should say the name of the security group you just created).
-  * Later on, if you ever need to access the terminal/shell inside any of your instances,
-    head to Security Groups again, select and edit this group's inbound rules, and
-    attach the SSH protocol type with CIDR 0.0.0.0/0. Then, go to an EC2 instance,
-    select connect, and you should now be able to connect via SSH.
+   * Later on, if you ever need to access the terminal/shell inside any of your instances,
+     head to Security Groups again, select and edit this group's inbound rules, and
+     attach the SSH protocol type with CIDR 0.0.0.0/0. Then, go to an EC2 instance,
+     select connect, and you should now be able to connect via SSH.
 
 4. This step may be optional depending on your use-case. For many Django applications
    we typically use the database; this step covers both the database and cache. Just
@@ -473,7 +476,7 @@ Creating a CodeDeploy Deployment Group
    `Setting up Credentials`_, step 9. It should look like: "project-CodeDeploy". The
    deployment type should be Blue/Green. The environment configuration should be copying
    Autoscaling group. Choose your Autoscaling group. Re-route traffic immediately.
-   Terminate the original instance in 30 minutes.
+   Terminate the original instance in 10 minutes.
 3. In this tutorial, we can just select the Deployment Configuration for half. However,
    in the future, you should create a custom percentage based configuration with
    minimum healthy instances being 80% (so 20% at a time. This can be lowered to 10%).
@@ -853,6 +856,42 @@ Yes. I, however, explicitly mentioned why not to (to have separate VPCs per proj
 security) and to have different configurations. Also know that it'll be annoying when
 one repository commits, all servers go down together. The method of setting this up is
 the same as the celery bullet point above.
+
+**Deployment is failing or website is not showing up**
+
+Run the manual deployment a second or third time. Another method of troubleshooting
+is to head to CodeDeploy, visit the latest deployment, then go to the bottom and
+check the lifecycle hooks' logs.
+
+**Can I run the shell in production?**
+
+Yes! Just ssh into it via a random EC2 instance. Then run ``source venv/bin/activate``
+to get the virtual environment and then run ``python manage.py shell``. I highly
+recommend you install IPython via pip (stored in base.txt) and ``manage.py shell``
+will use IPython automatically. To get autocomplete, press tab and jedi will appear.
+
+**I'm getting an Internal Server Error**
+
+Congrats on getting the website deployed! The server is running, but you may have
+a view that's wrong or, commonly, the permissions for your S3 bucket is too secure.
+
+For the first part, you should SSH into an EC2 instance. Run
+``sudo su && chmod +x scripts/start_server``. Then run ``nano scripts/start_server``
+and delete ``--daemon`` from gunicorn's command. Finally, run ``scripts/start_server``,
+run the bad endpoint, and view the logs in gunicorn. For the S3 bucket permissions,
+this is what you should have:
+
+.. image:: docs/s3-perms.png
+  :width: 400
+  :alt: S3 bucket permissions
+
+**Why is there still an instance after I deploy (double)?**
+
+That's the reason for the 10 minutes termination. 10 minutes is more than enough time
+to pip install and get everything ready. Traffic will slowly migrate to the new
+instances. Doing it slowly makes sure our servers don't crash; additionally, it gives
+us testing time to rollback a deployment if something goes awry. After a successful
+deployment, the old instances and EC2 Autoscaling group will be destroyed.
 
 Links
 ^^^^^
