@@ -631,7 +631,10 @@ parameter store values I used here for a default cookiecutter-django project: [3
    ``if "AWS_ACCESS_KEY_ID" not in os.environ``, then I'd require the parameter store
    values. The region should match with your S3 bucket region. If not, then you'll
    still want to manually set it with a Parameter Store value.
-6. If you recall from `Setting up Credentials`_, we made a path prefix there for our
+6. In Parameter Store, make sure you don't enable ``DJANGO_SECURE_SSL_REDIRECT`` or the
+   actual Django setting ``SECURE_SSL_REDIRECT``. Otherwise, you'll be in a 301 loop
+   of death. Either turn it off with a hard coded ``False`` or disabe it.
+7. If you recall from `Setting up Credentials`_, we made a path prefix there for our
    resource. The point of having it there was so that we restrict our EC2 instance from
    seeing other environment variables not designated for this project to see. Double
    check your path prefix is the same.
@@ -1019,6 +1022,8 @@ CI_CD_DEPLOYMENT_AUTH_TOKEN     The authorization token to use for our single-ex
 Parameter Names                   Parameter Value Description
 ================================= ======================================================
 /p/DJANGO_SECRET_KEY              Django secret key (same for Flask)
+/p/DJANGO_SECURE_SSL_REDIRECT     Tells Django to redirect HTTP to HTTPS. Should be False
+                                  since we're using ALB to do that.
 /p/DATABASE_URL                   Database url from AWS RDS
 /p/REDIS_URL                      Cache url from AWS ElastiCache/RabbitMQ (used mostly
                                   for those using Celery). It can also be blank if you
