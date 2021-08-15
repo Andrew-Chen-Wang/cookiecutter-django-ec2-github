@@ -537,13 +537,13 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
             symbols += "".join(suitable)
         return "".join([random.choice(symbols) for _ in range(length)])
 
-    print("username", generate_random_string(32, using_ascii_letter=True))
+    print("username", generate_random_string(32, using_ascii_letters=True))
     print(
         "password",
         generate_random_string(64, using_digits=True, using_ascii_letters=True)
     )
 
-4. My db instance class was a Burstable db.t2.micro costing with AWS free tier, excluding
+4. My db instance class was a Burstable db.t3.micro for $13, excluding
    monthly storage costs (which is cheap if you constantly increment your storage by
    monitoring storage consumption). If you need help with calculating prices, visit
    `calculator.aws <https://calculator.aws/>`_. For my Storage type, I chose General
@@ -557,7 +557,7 @@ need to upgrade your instance, and, yes, it's configurable/updatable. Don't worr
    only.
 6. Open the Additional configuration dropdown. You need to name your database. You can
    run the above Python script again like so:
-   ``print(generate_random_string(64, using_digits=True, using_ascii_letter=True))``
+   ``print(generate_random_string(62, using_digits=True, using_ascii_letters=True))``
 7. Enable automated backups. The backup window should be at a specific time when the
    least number of users are predicted to be online. Make sure to enable auto minor
    version upgrade. Also be sure to select a maintenance window (something AWS would
@@ -1037,6 +1037,8 @@ Parameter Names                   Parameter Value Description
                                   probably more wise to use AWS SES for cost purposes.
 /p/MAILGUN_DOMAIN                 The email domain. For AWS infrastructure, it is
                                   probably more wise to use AWS SES for cost purposes.
+/p/SINGLE_CD_AUTHORIZATION_TOKEN  The authorization token from our single-execution
+                                  per-deployment script
 ================================= ======================================================
 
 .. [4] Celery Daemonization:
