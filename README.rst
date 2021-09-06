@@ -399,6 +399,16 @@ Note: your Load Balancer will start charging quite a bit. Maybe $12 per month?
 3. In Configure Security Groups, select the one that had the description about ALB.
 4. Configure Routing: select the target group you first made. Finally, hit next and
    create your load balancer.
+5. Make sure you're still in the load balancer tab. Select your load balancer,
+   head to the listeners tab, find the row with port 80 listener, and press View/edit
+   rules (you'll need to scroll right).
+6. Press the edit button (it can also look like a pencil icon). Delete the current
+   action. Press Add action. Choose Redirect To. Type in port 443. Make sure you still
+   have original host, path, and query and status code 301. Then press the checkmark
+   button. On the top, press the Update button.
+
+The point of this redirect is to avoid having to go through the actual EC2 instance's
+reverse proxy and simply let AWS ALB handle this. 
 
 Setting up EC2 Auto Scaling Group
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -495,7 +505,7 @@ cache setup, but the concepts here remain the same: VPC, security group attachme
 and checking your costs.
 
 This is the most expensive piece: the database. I'm going to use the cheapest option,
-a t2.micro instance, costing my $26 per month. Check your metrics everyday to see if you
+a db.t3.micro instance, costing my $13 per month. Check your metrics everyday to see if you
 need to upgrade your instance, and, yes, it's configurable/updatable. Don't worry.
 
 1. Search up RDS. Go to the Databases tab and press Create database.
@@ -624,7 +634,8 @@ parameter store values I used here for a default cookiecutter-django project: [3
    For cookiecutter-django or django-environ users, I've created a class ``Env`` which
    takes that JSON file and inserts the key/values into ``os.environ`` (you can view
    the class in `config/settings/base.py`_.
-5. In `config/settings/production.py`_, I made some changes with django-storages.
+5. In `the django-storages section in config/settings/production.py <https://github.com/Andrew-Chen-Wang/cookiecutter-django-ec2-github/blob/e1e5a5b428e17fb0106f4e342fbba0d6692d3d50/config/settings/production.py#L62-L69>`_,
+   I made some changes with django-storages.
    Because our EC2 instances already have its AWS credentials and region set up, I
    chose to omit the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_S3_REGION_NAME,
    hence not needing it in Parameter Store. (I wrote an if condition saying if
