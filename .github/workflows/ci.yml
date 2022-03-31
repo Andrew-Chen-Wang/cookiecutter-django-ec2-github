@@ -79,7 +79,7 @@ jobs:
           echo "::set-output name=dir::$(pip cache dir)"
 
       - name: Cache pip Project Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           # Get the location of pip cache dir
           path: ${{ steps.pip-cache-location.outputs.dir }}
