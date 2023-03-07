@@ -99,7 +99,7 @@ jobs:
 # Changes should end here
 #--------------------------------------------------------------------------------------
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         if: |
           github.event_name == 'push'
           && (github.ref == 'refs/heads/main' || github.head_ref == 'refs/heads/master')
